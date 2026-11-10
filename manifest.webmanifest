@@ -1,6 +1,6 @@
 {
-  "name": "育児記録",
-  "short_name": "育児記録",
+  "name": "ねんねミルク",
+  "short_name": "ねんねミルク",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

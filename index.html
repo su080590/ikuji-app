@@ -1,129 +1,175 @@
 <!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>育児記録</title>
+<title>ねんねミルク</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#5b4fd6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="育児記録">
+<meta name="apple-mobile-web-app-title" content="ねんねミルク">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 <style>
+  /* ===== ねんねミルク PWA v2（2026-11-10）。v1（pwa_release）から画面の作りを変えた：下タブ4つ・1画面のつけとこ・みよかの小さいグラフ・しゃべろ ===== */
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, "Hiragino Sans", sans-serif; margin: 0; padding: 10px 12px; background: #f4f3f9; color: #222; }
-  .card { background: #fff; border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
-  h2 { font-size: 13px; margin: 0 0 6px; color: #666; font-weight: 600; }
-  .sum { background: #fff; border-radius: 14px; margin-bottom: 8px; overflow: hidden; }
-  .sr { padding: 8px 12px; border-bottom: 1px solid #ececf2; min-width: 0; }
-  .two { display: grid; grid-template-columns: 1fr 1fr; }
-  .two > .sr + .sr { border-left: 1px solid #ececf2; }
-  .sh { display: flex; align-items: baseline; gap: 8px; flex-wrap: nowrap; min-width: 0; }
-  .st { font-size: 16px; font-weight: 700; flex: none; }
-  .sa { color: #e8707a; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-  .sa.warn { color: #d97706; }
-  .sc { display: flex; align-items: center; gap: 8px; margin-top: 4px; min-width: 0; }
-  .si { width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 19px; background: #efedfa; }
-  .sn { font-size: 13px; color: #777; white-space: nowrap; }
-  .sn b { font-size: 22px; font-weight: 500; color: #222; margin-right: 2px; }
-  .ss { font-size: 12px; color: #777; }
-  .ss b { font-size: 15px; color: #222; }
-  .sf { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; font-size: 14px; }
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  button { font: inherit; font-size: 16px; border: 0; border-radius: 12px; padding: 13px 4px; background: #ebe9f7; color: #222; }
-  button.on { background: #5b4fd6; color: #fff; }
-  button.go { background: #5b4fd6; color: #fff; width: 100%; margin-top: 8px; }
+  :root { --p: #5b4fd6; --p2: #7b70e4; --pl: #efedfa; --ink: #222; --mute: #777; --line: #ececf2; --ok: #1a7f37; --warn: #c2410c; }
+  html { height: 100%; }
+  body { font-family: -apple-system, "Hiragino Sans", sans-serif; margin: 0; background: #f4f3f9; color: var(--ink);
+         padding: calc(6px + env(safe-area-inset-top)) 10px calc(72px + env(safe-area-inset-bottom)); min-height: 100%; }
+  [hidden] { display: none !important; }
+  h2 { font-size: 12px; margin: 0 0 4px; color: var(--mute); font-weight: 600; }
+  .card { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; }
+  .hint { font-size: 12px; color: var(--mute); margin-top: 4px; }
+  button { font: inherit; font-size: 15px; border: 0; border-radius: 11px; padding: 10px 4px; background: #ebe9f7; color: var(--ink); -webkit-tap-highlight-color: transparent; }
+  button.on { background: var(--p); color: #fff; }
+  button.go { background: var(--p); color: #fff; width: 100%; margin-top: 8px; }
   button.small { font-size: 14px; padding: 8px 12px; }
   button:disabled { opacity: .35; }
   input, select { font: inherit; font-size: 16px; padding: 8px; border: 1px solid #ccc; border-radius: 10px; }
   input[type=number] { width: 100px; }
   input.wide { width: 100%; }
-  #msg { font-size: 15px; line-height: 1.5; }
-  #msgCard { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 10; margin: 0; box-shadow: 0 6px 24px rgba(0,0,0,.18); }
-  body.busy button:not(#undo):not(#closeMsg) { opacity: .45; pointer-events: none; }
-  body { padding-bottom: 140px; padding-top: calc(10px + env(safe-area-inset-top)); }
-  .hint { font-size: 12px; color: #777; margin-top: 6px; }
-  [hidden] { display: none !important; }
-  .chk { background: #fff4e5; border: 1px solid #f5c27a; border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; font-size: 14px; line-height: 1.5; }
+  body.busy button:not(#undo):not(#closeMsg):not(.tab) { opacity: .45; pointer-events: none; }
+  /* 上の見出し：画面の名前と、時間帯のあいさつ */
+  .top { display: flex; align-items: baseline; justify-content: space-between; padding: 2px 4px 6px; }
+  .top b { font-size: 18px; }
+  .top span { font-size: 12px; color: var(--mute); }
+  /* ===== 下のタブ（4つ）。横にスワイプしても切り替わる ===== */
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; background: #fff; border-top: 1px solid var(--line);
+         display: flex; padding: 4px 6px calc(6px + env(safe-area-inset-bottom)); }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; background: transparent; color: #8b87a8; font-size: 11px; padding: 4px 0 2px; border-radius: 10px; position: relative; }
+  .tab svg { width: 24px; height: 24px; }
+  .tab.on { color: var(--p); font-weight: 700; background: transparent; }
+  .tab .badge { position: absolute; top: 2px; right: calc(50% - 20px); min-width: 16px; height: 16px; border-radius: 8px; background: #e4572e; color: #fff; font-size: 10px; line-height: 16px; padding: 0 4px; font-weight: 700; }
+  /* ===== つけとこ ===== */
+  .rc { background: #fff; border-radius: 14px; padding: 7px 12px; margin-bottom: 7px; }
+  .rl { display: flex; align-items: baseline; gap: 7px; flex-wrap: nowrap; min-width: 0; }
+  .rl .lk { font-size: 12px; color: var(--mute); flex: none; }
+  .rl b { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .rl .ago { color: var(--p2); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .rl .chev { margin-left: auto; color: #aaa; font-size: 12px; flex: none; transition: transform .15s; }
+  .rc.open .chev { transform: rotate(180deg); }
+  .ri { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 3px 10px; font-size: 14px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+  .ri .t { color: var(--mute); font-variant-numeric: tabular-nums; }
+  .ri .x { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ri .w { color: #999; font-size: 12px; }
+  .ri button.del { font-size: 12px; padding: 4px 8px; border-radius: 8px; background: #f3f2f8; color: #888; }
+  .ri button.del.sure { background: #d9534f; color: #fff; }
+  .tlMemo { grid-column: 2 / 5; font-size: 12px; color: #8a6d3b; margin-top: -2px; }
+  .sum { background: #fff; border-radius: 14px; margin-bottom: 7px; overflow: hidden; }
+  .sr { padding: 6px 12px; border-bottom: 1px solid var(--line); min-width: 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; }
+  .two > .sr + .sr { border-left: 1px solid var(--line); }
+  .sh { display: flex; align-items: baseline; gap: 7px; flex-wrap: nowrap; min-width: 0; }
+  .st { font-size: 15px; font-weight: 700; flex: none; }
+  .sa { color: var(--p2); font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .sa.warn { color: #d97706; }
+  .sc { display: flex; align-items: center; gap: 7px; margin-top: 2px; min-width: 0; }
+  .si { width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 16px; background: var(--pl); }
+  .sn { font-size: 12px; color: var(--mute); white-space: nowrap; }
+  .sn b { font-size: 19px; font-weight: 500; color: var(--ink); margin-right: 1px; }
+  .ss { font-size: 12px; color: var(--mute); }
+  .ss b { font-size: 14px; color: var(--ink); }
+  .sf { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* いつの記録？：1段で、日時ボタン・今（くるっと矢印）・パパ／ママ */
+  .dtRow { display: flex; align-items: center; gap: 6px; }
+  .dtRow .dtBtn { flex: 1; display: flex; justify-content: space-between; align-items: center; background: var(--pl); font-size: 15px; padding: 9px 10px; min-width: 0; }
+  .dtRow .dtBtn span + span { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .dtRow .dtBtn.custom { background: #fff1d6; }
+  .dtRow .nowBtn { flex: none; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; background: var(--pl); color: var(--p); }
+  .dtRow .nowBtn svg { width: 20px; height: 20px; }
+  .seg { display: flex; flex: none; background: var(--pl); border-radius: 11px; padding: 2px; }
+  .seg button { background: transparent; font-size: 13px; padding: 7px 10px; border-radius: 9px; color: #666; }
+  .seg button.on { background: #fff; color: var(--p); font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  /* 記録ボタン：赤ちゃんノートくらいの大きさ（4列） */
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .grid button { font-size: 14px; padding: 10px 2px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; font-size: 14px; }
+  /* 予想（つけとこの一番下） */
+  .fc2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+  .fc2 .ft { font-size: 11px; color: var(--mute); }
+  .fc2 .fm { display: flex; align-items: baseline; gap: 4px; }
+  .fc2 .fv { font-size: 22px; font-weight: 600; }
+  .fc2 .fu { font-size: 12px; color: var(--mute); }
+  .fc2 .fa { font-size: 12px; font-weight: 600; margin-left: 2px; white-space: nowrap; }
+  .fa.up { color: var(--ok); } .fa.down { color: var(--warn); } .fa.flat { color: var(--ok); }
+  .fc2 .fn { font-size: 12px; color: #555; }
+  /* ===== ながれ ===== */
+  .tlNav { display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 14px; padding: 2px 4px; margin-bottom: 7px; }
+  .tlNav button { background: transparent; font-size: 22px; padding: 4px 18px; color: var(--p); }
+  .tlNav b { font-size: 16px; }
+  .tlSum { font-size: 12px; color: #555; line-height: 1.6; }
+  .tlSum b { font-size: 14px; color: var(--ink); }
+  .tlBox { max-height: calc(100vh - 215px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  /* ===== みよか ===== */
+  .rh { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; }
+  .rh .hd { display: flex; align-items: center; gap: 8px; }
+  .rh .hd b { font-size: 14px; }
+  .rh .seg2 { display: flex; gap: 4px; margin-left: auto; }
+  .rh .seg2 button { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #f3f2f8; }
+  .rh .seg2 button.on { background: var(--ink); color: #fff; }
+  .rh .read { font-size: 12px; color: #333; min-height: 18px; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rh svg { display: block; width: 100%; touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+  .mini { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 7px; }
+  .mc { background: #fff; border-radius: 14px; padding: 8px 10px; min-width: 0; }
+  .mc .mt { font-size: 12px; font-weight: 700; color: #2b2650; }
+  .mc .mv { font-size: 21px; font-weight: 600; line-height: 1.2; margin-top: 2px; }
+  .mc .mv small { font-size: 11px; color: var(--mute); font-weight: 500; margin-left: 2px; }
+  .mc .ms { font-size: 11px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mc svg { display: block; width: 100%; height: 34px; margin: 2px 0; }
+  .chip { display: inline-block; font-size: 11px; color: #2b2650; background: var(--pl); border-radius: 999px; padding: 3px 8px; margin: 2px 3px 0 0; }
+  .chip.star { background: var(--p); color: #fff; }
+  .chip.one { border: 1px solid var(--p2); background: #fff; }
+  .meal { font-size: 11px; color: #333; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar2 { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+  .bar2 .tr { flex: 1; height: 6px; border-radius: 3px; background: var(--pl); overflow: hidden; }
+  .bar2 .tr i { display: block; height: 6px; background: var(--p); }
+  .big { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; }
+  .big .bt { display: flex; align-items: baseline; gap: 8px; font-size: 13px; font-weight: 700; }
+  .big .bt span { font-size: 11px; color: var(--mute); font-weight: 500; }
+  .big .bt .sw { margin-left: auto; font-size: 11px; color: var(--p); font-weight: 600; background: transparent; padding: 2px 6px; }
+  .big svg { display: block; width: 100%; touch-action: pan-y; }
+  .big .read { font-size: 12px; color: #333; min-height: 16px; }
+  .fgrp { font-size: 11px; color: var(--mute); margin-top: 6px; }
+  /* ===== しゃべろ ===== */
+  .nt { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; border-left: 4px solid var(--p2); }
+  .nt .nk { font-size: 11px; color: var(--mute); display: flex; gap: 8px; }
+  .nt .nk b { color: var(--p); }
+  .nt .nx { font-size: 14px; line-height: 1.6; margin-top: 2px; white-space: pre-wrap; }
+  .nt a { color: var(--p); font-size: 13px; }
+  .nt.new { background: #faf9ff; }
+  .chk { background: #fff4e5; border: 1px solid #f5c27a; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; font-size: 14px; line-height: 1.5; }
   .chk .ct { font-weight: 600; color: #b45309; font-size: 13px; }
   .chk .why { font-size: 12px; color: #8a6d3b; margin-top: 2px; }
   .chk .row button { flex: 1; }
   .chk button.fix { background: #d97706; color: #fff; }
-  .rc { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 8px; }
-  .rl { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-  .rl .lk { font-size: 12px; color: #777; }
-  .rl b { font-size: 17px; font-weight: 700; }
-  .rl .ago { color: #e8707a; font-size: 14px; font-weight: 600; }
-  .ri { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 3px 10px; font-size: 14px; margin-top: 6px; padding-top: 6px; border-top: 1px solid #ececf2; }
-  .ri .t { color: #777; font-variant-numeric: tabular-nums; }
-  .ri .x { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ri .x small { color: #8a6d3b; font-size: 12px; }
-  .ri .w { color: #999; font-size: 12px; }
-  .ri button.del { font-size: 12px; padding: 4px 8px; border-radius: 8px; background: #f3f2f8; color: #888; }
-  .ri button.del.sure { background: #d9534f; color: #fff; }
-  .rb { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1px solid #ccc; border-radius: 999px; background: #fff; font-size: 16px; }
-  .rb input { width: 18px; height: 18px; margin: 0; accent-color: #5b4fd6; }
-  .rb:has(input:checked) { background: #5b4fd6; border-color: #5b4fd6; color: #fff; }
-  /* 画面の切り替え（記録する／タイムライン） */
-  .tabs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; }
-  .tabs button { padding: 9px 4px; font-size: 15px; background: #fff; color: #555; }
-  .tabs button.on { background: #5b4fd6; color: #fff; }
-  /* いつの記録？：赤ちゃんノート風に日付と時刻を分ける */
-  .dtRow { display: flex; align-items: center; gap: 8px; background: #efedfa; border-radius: 12px; padding: 4px 6px 4px 12px; margin-top: 6px; }
-  .dtRow .lb { color: #888; font-size: 14px; flex: none; width: 36px; }
-  .dtRow .dv { flex: 1; text-align: center; font-size: 18px; }
-  .dtRow button.nav { background: transparent; font-size: 22px; padding: 4px 14px; color: #5b4fd6; }
-  .dtRow select { flex: 1; border: 0; background: transparent; font-size: 18px; text-align: center; text-align-last: center; padding: 8px 4px; min-width: 0; -webkit-appearance: none; appearance: none; color: #222; }
-  .dtRow .colon { font-size: 18px; flex: none; }
-  .dtRow .dtBtn { flex: 1; display: flex; justify-content: space-between; align-items: center; background: transparent; font-size: 18px; padding: 9px 8px; }
-  .dtRow .dtBtn span + span { font-variant-numeric: tabular-nums; }
-  /* 日時のホイール（マップ風に3列を1枚で） */
-  .wheelBg { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0,0,0,.35); z-index: 20; }
-  .wheelSheet { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 16px 16px 0 0; padding: 8px 12px 28px; }
-  .wheelHead { display: flex; align-items: center; justify-content: space-between; }
-  .wheelHead button { background: transparent; font-size: 16px; padding: 10px 6px; color: #5b4fd6; }
-  .wheelHead button.ok { font-weight: 700; }
-  .wheel { position: relative; display: flex; height: 220px; margin-top: 4px; }
-  .wcol { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; padding: 88px 0; scrollbar-width: none; position: relative; z-index: 1; }
+  .chat { background: #fff; border-radius: 14px; padding: 10px 12px; margin-bottom: 7px; }
+  .chat textarea { width: 100%; font: inherit; font-size: 15px; border: 1px solid #ddd; border-radius: 10px; padding: 8px; resize: none; height: 64px; }
+  .chat .cq { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chat .cq button { font-size: 12px; padding: 6px 10px; border-radius: 999px; }
+  /* ===== 下からせり上がる画面（日時のホイール・記録の中身・お知らせ） ===== */
+  .sheetBg { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0,0,0,.35); z-index: 20; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 16px 16px 0 0; padding: 8px 12px calc(22px + env(safe-area-inset-bottom)); }
+  .sheetHead { display: flex; align-items: center; justify-content: space-between; }
+  .sheetHead button { background: transparent; font-size: 16px; padding: 10px 6px; color: var(--p); }
+  .sheetHead button.ok { font-weight: 700; }
+  .sheetHead b { font-size: 15px; }
+  /* ホイール：日付の列は狭く、時・分は中央寄り（右端を空けて、親指で分を回しやすく） */
+  .wheel { position: relative; display: flex; height: 200px; margin-top: 4px; padding-right: 14%; }
+  .wcol { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; padding: 78px 0; scrollbar-width: none; position: relative; z-index: 1; }
   .wcol::-webkit-scrollbar { display: none; }
-  .wcol.wd { flex: 2; }
-  .wcol div { height: 44px; line-height: 44px; text-align: center; font-size: 21px; scroll-snap-align: center; color: #222; font-variant-numeric: tabular-nums; }
-  .wbar { position: absolute; left: 0; right: 0; top: 88px; height: 44px; background: #f0eff6; border-radius: 10px; pointer-events: none; }
-  .wheel::before, .wheel::after { content: ''; position: absolute; left: 0; right: 0; height: 88px; z-index: 2; pointer-events: none; }
+  .wcol.wd { flex: 1.5; }
+  .wcol div { height: 44px; line-height: 44px; text-align: center; font-size: 20px; scroll-snap-align: center; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .wbar { position: absolute; left: 0; right: 14%; top: 78px; height: 44px; background: #f0eff6; border-radius: 10px; pointer-events: none; }
+  .wheel::before, .wheel::after { content: ''; position: absolute; left: 0; right: 0; height: 78px; z-index: 2; pointer-events: none; }
   .wheel::before { top: 0; background: linear-gradient(#fff, rgba(255,255,255,.55)); }
   .wheel::after { bottom: 0; background: linear-gradient(rgba(255,255,255,.55), #fff); }
-  .dtRow input.typed { flex: 1; border: 0; background: #fff; font-size: 16px; padding: 6px 8px; min-width: 0; }
-  /* グラフタブ */
-  .fc { background: #fff; border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
-  .fc .ft { font-size: 13px; color: #777; }
-  .fc .fm { display: flex; align-items: baseline; gap: 10px; margin-top: 2px; }
-  .fc .fv { font-size: 30px; font-weight: 500; }
-  .fc .fu { font-size: 14px; color: #777; }
-  .fc .fa { margin-left: auto; font-size: 14px; font-weight: 600; white-space: nowrap; }
-  /* 矢印の色はダッシュボードと同じ：多そう・いつも通り＝緑、少なそう＝オレンジ（2026-11-09） */
-  .fc .fa.up { color: #1a7f37; } .fc .fa.down { color: #c2410c; } .fc .fa.flat { color: #1a7f37; }
-  .fc .fn { font-size: 13px; color: #555; margin-top: 6px; padding-top: 6px; border-top: 1px solid #ececf2; }
-  .fc .fn b { color: #222; }
-  .rh { background: #fff; border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
-  .rh .seg { display: flex; gap: 6px; margin: 6px 0; }
-  .rh .seg button { font-size: 13px; padding: 6px 12px; border-radius: 999px; background: #f3f2f8; }
-  .rh .seg button.on { background: #222; color: #fff; }
-  .rh .legend { font-size: 11px; color: #666; line-height: 1.7; }
-  .rh .legend span { white-space: nowrap; }
-  .rh .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin: 0 3px 0 6px; vertical-align: -1px; }
-  .rh .read { font-size: 13px; color: #333; min-height: 20px; margin: 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .rh svg { display: block; width: 100%; touch-action: pan-y; -webkit-user-select: none; user-select: none; }
-  .dashLink { display: block; text-align: center; font-size: 14px; color: #5b4fd6; padding: 10px; }
-  .dtTop { display: flex; align-items: center; gap: 10px; }
-  .ld { font-size: 13px; color: #888; }
-  /* タイムライン */
-  .tlNav { display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 14px; padding: 4px; margin-bottom: 8px; }
-  .tlNav button { background: transparent; font-size: 22px; padding: 6px 18px; color: #5b4fd6; }
-  .tlNav b { font-size: 17px; }
-  .tlSum { font-size: 13px; color: #555; line-height: 1.6; }
-  .tlSum b { font-size: 15px; color: #222; }
-  .tlMemo { grid-column: 2 / 5; font-size: 12px; color: #8a6d3b; margin-top: -2px; }
+  .typedRow { display: flex; align-items: center; gap: 8px; margin-top: 6px; background: var(--pl); border-radius: 12px; padding: 4px 6px 4px 12px; }
+  .typedRow .lb { color: #888; font-size: 13px; flex: none; }
+  .typedRow input { flex: 1; border: 0; background: #fff; font-size: 16px; padding: 7px 8px; min-width: 0; }
+  #msg { font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
+  #msgCard { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 18; margin: 0; box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+  #tokenCard { margin-bottom: 7px; }
 </style></head>
 <body>
   <div class="card" id="tokenCard" hidden>
@@ -133,17 +179,13 @@
     <div class="hint">このスマホに保存され、次からは聞かれません。</div>
   </div>
 
-  <div class="tabs">
-    <button class="on" id="tabRec">記録する</button>
-    <button id="tabTl">タイムライン</button>
-    <button id="tabGr">グラフ</button>
-  </div>
+  <div class="top"><b id="topName">つけとこ</b><span id="topSub"></span></div>
 
-  <!-- ===== 記録する画面 ===== -->
+  <!-- ===== つけとこ（記録する） ===== -->
   <div id="viewRec">
   <div class="rc" id="recent">
-    <div class="rl"><span class="lk">最後の記録</span><b id="r-what">読み込み中…</b><span id="r-at"></span><span class="ago" id="r-ago"></span><span class="lk" id="r-who" style="margin-left:auto"></span></div>
-    <div class="ri" id="r-list"></div>
+    <div class="rl" id="recHead"><span class="lk">最後</span><b id="r-what">読み込み中…</b><span id="r-at"></span><span class="ago" id="r-ago"></span><span class="chev">▼</span></div>
+    <div class="ri" id="r-list" hidden></div>
   </div>
 
   <div class="sum" id="sum">
@@ -170,115 +212,125 @@
     </div>
   </div>
 
-  <div id="checks"></div>
-
   <div class="card">
-    <div class="dtTop">
-      <h2 style="margin:0">いつの記録？</h2>
-      <button class="small on" id="nowBtn">今</button>
-      <span class="ld" id="nowLd" hidden>読み込み中…</span>
-    </div>
-    <!-- 日時を押すと、マップのように「日付・時・分」の3列のホイールが1枚で開く。時刻だけなら、下の欄に「2130」「930」と打ってもよい（日付はホイールで。2026-11-09：数字キーボードに「/」がないので、日付の直接入力はやめた） -->
-    <div class="dtRow"><span class="lb">日時</span><button class="dtBtn" id="dtBtn"><span id="dtDay">今日</span><span id="dtTime">0:00</span></button></div>
-    <div class="dtRow"><span class="lb">時刻</span><input class="typed" id="typed" inputmode="numeric" placeholder="時刻だけ打つ（例 2130、930）"></div>
-    <div class="row">記録する人
-      <label class="rb"><input type="radio" name="who" value="パパ" checked>パパ</label>
-      <label class="rb"><input type="radio" name="who" value="ママ">ママ</label>
+    <div class="dtRow">
+      <button class="dtBtn" id="dtBtn" aria-label="いつの記録か"><span id="dtDay">今日</span><span id="dtTime">0:00</span></button>
+      <button class="nowBtn" id="nowBtn" aria-label="時刻を今に戻して読み直す"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></button>
+      <div class="seg" id="whoSeg"><button data-who="パパ" class="on">パパ</button><button data-who="ママ">ママ</button></div>
     </div>
   </div>
 
   <div class="card">
-    <h2>記録する</h2>
     <div class="grid" id="kinds">
       <button data-k="ミルク">ミルク</button>
       <button data-k="母乳">母乳</button>
       <button data-k="離乳食">離乳食</button>
+      <button data-k="お風呂">お風呂</button>
       <button data-k="寝た">寝た</button>
       <button data-k="起きた">起きた</button>
-      <button data-k="お風呂">お風呂</button>
       <button data-k="おしっこ">おしっこ</button>
       <button data-k="うんち">うんち</button>
-      <button data-k="両方">おしっこ<br>＋うんち</button>
+      <button data-k="両方">両方</button>
       <button data-k="体重">体重</button>
       <button data-k="身長">身長</button>
     </div>
+  </div>
 
-    <div id="p-ミルク" class="panel" hidden>
-      <div class="row">量を選ぶと記録します</div>
-      <div class="grid" style="margin-top:8px">
-        <button data-ml="20">20</button><button data-ml="40">40</button><button data-ml="60">60</button>
-        <button data-ml="80">80</button><button data-ml="100">100</button><button data-ml="120">120</button>
-        <button data-ml="140">140</button><button data-ml="160">160</button><button data-ml="200">200</button>
-      </div>
-      <div class="row">ほかの量 <input type="number" id="mlIn" inputmode="numeric"> ml <button class="small" id="mlGo">記録</button></div>
-    </div>
-
-    <div id="p-母乳" class="panel" hidden>
-      <div class="grid" style="margin-top:8px">
-        <button data-side="左">左</button><button data-side="右">右</button><button data-side="左右">左右</button>
-      </div>
-      <button class="go" data-side="">左右を指定せずに記録</button>
-    </div>
-
-    <div id="p-離乳食" class="panel" hidden>
-      <div class="row"><input id="foodIn" class="wide" placeholder="食べたもの（例：おかゆ、豆腐、玉ねぎ）"></div>
-      <div class="row">量 <input type="number" id="foodG" inputmode="numeric"> g（空でもOK）</div>
-      <button class="go" id="foodGo">記録</button>
-    </div>
-
-    <div id="p-うんち" class="panel" hidden>
-      <div class="grid" style="margin-top:8px">
-        <button data-st="ふつう">ふつう</button><button data-st="やわらかめ">やわらかめ</button><button data-st="かため">かため</button>
-      </div>
-    </div>
-
-    <div id="p-体重" class="panel" hidden>
-      <div class="row"><input type="number" id="kgIn" step="0.01" inputmode="decimal"> kg <button class="small" id="kgGo">記録</button></div>
-    </div>
-
-    <div id="p-身長" class="panel" hidden>
-      <div class="row"><input type="number" id="cmIn" step="0.1" inputmode="decimal"> cm <button class="small" id="cmGo">記録</button></div>
-      <div class="hint">例：68.5（小数点1けたまで）</div>
+  <!-- 予想（グラフ画面から移した。2026-11-10） -->
+  <div class="card" id="fcCard">
+    <div class="fc2">
+      <div><div class="ft">今日のミルク（着地）</div><div class="fm"><span class="fv" id="g-ml">–</span><span class="fu">ml</span><span class="fa" id="g-mlA"></span></div><div class="fn" id="g-feed"></div></div>
+      <div><div class="ft">今日の睡眠（着地）</div><div class="fm"><span class="fv" id="g-sl">–</span><span class="fu">時間</span><span class="fa" id="g-slA"></span></div><div class="fn" id="g-sleep"></div></div>
     </div>
   </div>
   </div>
 
-  <!-- ===== タイムライン画面（1日分を時刻順に。赤ちゃんノートとの見比べ・消すのに使う） ===== -->
+  <!-- ===== ながれ（タイムライン） ===== -->
   <div id="viewTl" hidden>
     <div class="tlNav"><button id="tlPrev">‹</button><b id="tlDate">今日</b><button id="tlNext">›</button></div>
     <div class="card tlSum" id="tlSum">読み込み中…</div>
-    <div class="rc"><div class="ri" id="tlList" style="margin-top:0;padding-top:0;border-top:0"></div></div>
+    <div class="rc tlBox"><div class="ri" id="tlList" style="margin-top:0;padding-top:0;border-top:0"></div></div>
   </div>
 
-  <!-- ===== グラフ画面（2026-11-08。ダッシュボードの予測と1日のリズムをこちらにも。Kindle Fire の Silk でも見られるように） ===== -->
+  <!-- ===== みよか（グラフ） ===== -->
   <div id="viewGr" hidden>
-    <div class="fc">
-      <div class="ft">今日のミルク（着地予想）</div>
-      <div class="fm"><span class="fv" id="g-ml">–</span><span class="fu">ml</span><span class="fu" id="g-mlU"></span><span class="fa" id="g-mlA"></span></div>
-      <div class="fn" id="g-feed"></div>
-    </div>
-    <div class="fc">
-      <div class="ft">今日の睡眠（着地予想）</div>
-      <div class="fm"><span class="fv" id="g-sl">–</span><span class="fu">時間</span><span class="fu" id="g-slU"></span><span class="fa" id="g-slA"></span></div>
-      <div class="fn" id="g-sleep"></div>
-    </div>
     <div class="rh">
-      <b>1日のリズム</b>
-      <div class="seg" id="rhSeg"><button data-r="all" class="on">全体</button><button data-r="day">昼</button><button data-r="night">夜</button></div>
-      <div class="legend"><span><i style="background:#2f6fd6"></i>夜の睡眠</span><span><i style="background:#a9c8f3"></i>昼寝</span><span><i style="background:#12a886;border-radius:50%"></i>ミルク</span><span><i style="background:#f0a020;border-radius:50%"></i>母乳</span><span><i style="background:#e879a6;border-radius:50%"></i>離乳食</span><span><i style="background:#1a8f2e"></i>おしっこ</span><span><i style="background:#6b46c1"></i>うんち</span></div>
+      <div class="hd"><b>1日のリズム</b><div class="seg2" id="rhSeg"><button data-r="all" class="on">全体</button><button data-r="day">昼</button><button data-r="night">夜</button></div></div>
       <div class="read" id="rhRead">点や帯をなぞると、その記録がここに出ます</div>
-      <svg id="rhSvg" height="200"></svg>
+      <svg id="rhSvg" height="160"></svg>
     </div>
-    <a class="dashLink" href="https://claude.ai/artifact/RFVpDx1yN5wYvLhnzxJDZg" target="_blank">詳しいダッシュボードを開く（claude.ai）</a>
+    <div class="mini">
+      <div class="mc"><div class="mt">1日のミルク量</div><div class="mv" id="m-ml">–<small>ml 今日</small></div><svg id="m-mlS"></svg><div class="ms" id="m-mlU">2週間</div></div>
+      <div class="mc"><div class="mt">1日の睡眠時間</div><div class="mv" id="m-sl">–<small>時間 今日</small></div><svg id="m-slS"></svg><div class="ms" id="m-slU">2週間</div></div>
+      <div class="mc"><div class="mt">発育</div><div class="mv" id="m-gw">–</div><svg id="m-gwS"></svg><div class="ms" id="m-gwU"></div></div>
+      <div class="mc"><div class="mt">離乳食</div><div class="ms">次のおすすめ</div><div id="m-rec"></div><div class="ms" style="margin-top:4px">直近</div><div id="m-meals"></div><div class="bar2"><span class="ms" id="m-fp">クリア –</span><div class="tr"><i id="m-fb" style="width:0"></i></div></div></div>
+    </div>
+    <div class="big"><div class="bt">1日のミルク量<span>2週間・濃い紫＝今日</span></div><div class="read" id="b-mlR"></div><svg id="b-ml" height="120"></svg></div>
+    <div class="big"><div class="bt">1日の睡眠時間<span>濃い＝夜（20〜6時）・薄い＝昼</span></div><div class="read" id="b-slR"></div><svg id="b-sl" height="120"></svg></div>
+    <div class="big"><div class="bt"><span id="b-gwT" style="font-size:13px;color:var(--ink);font-weight:700">発育曲線（体重）</span><span>帯＝3〜97パーセンタイル・点線＝中央値</span><button class="sw" id="b-gwSw">身長を見る</button></div><div class="read" id="b-gwR">なぞると、その日の値が出ます</div><svg id="b-gw" height="150"></svg></div>
+    <div class="big"><div class="bt">離乳食　まだの食材<span id="b-fdT"></span></div><div id="b-fd"></div><div class="hint">2回食べたら消えます。★は保育園が家で試してほしい食材。枠だけのものは1回食べました</div></div>
   </div>
 
-  <!-- 日時のホイール（2026-11-08 夕）：日付・時・分の3列を1枚に並べ、まとめて回して選ぶ -->
-  <div class="wheelBg" id="wheelBg" hidden>
-    <div class="wheelSheet">
-      <div class="wheelHead"><button id="wCancel">キャンセル</button><b>いつの記録？</b><button id="wOk" class="ok">決定</button></div>
+  <!-- ===== しゃべろ（お知らせとチャット） ===== -->
+  <div id="viewAi" hidden>
+    <div id="ntBox"><div class="card" id="ntLoad">読み込み中…</div></div>
+    <div class="chat">
+      <h2>Claude に聞く（準備中）</h2>
+      <textarea id="chatIn" placeholder="API を申し込んだら、ここで記録のことを聞けるようになります" disabled></textarea>
+      <div class="cq"><button disabled>先週より夜寝てる？</button><button disabled>にんじん食べたっけ？</button><button disabled>かぼちゃの作り方</button></div>
+    </div>
+  </div>
+
+  <!-- 下のタブ -->
+  <nav class="bar" aria-label="画面の切り替え">
+    <button class="tab on" id="tabRec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>つけとこ</button>
+    <button class="tab" id="tabTl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>ながれ</button>
+    <button class="tab" id="tabGr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 4 3 5-7"/></svg>みよか</button>
+    <button class="tab" id="tabAi"><span class="badge" id="aiBadge" hidden>0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12Z"/></svg>しゃべろ</button>
+  </nav>
+
+  <!-- 日時のホイール（日付・時・分）。下に時刻だけ打つ欄 -->
+  <div class="sheetBg" id="wheelBg" hidden>
+    <div class="sheet">
+      <div class="sheetHead"><button id="wCancel">キャンセル</button><b>いつの記録？</b><button id="wOk" class="ok">決定</button></div>
       <div class="wheel">
         <div class="wcol wd" id="wD"></div><div class="wcol" id="wH"></div><div class="wcol" id="wM"></div>
         <div class="wbar"></div>
+      </div>
+      <div class="typedRow"><span class="lb">時刻を打つ</span><input id="typed" inputmode="numeric" placeholder="2130 や 930（打つとホイールが動く）"></div>
+    </div>
+  </div>
+
+  <!-- 記録の中身（ミルクの量・母乳の左右・離乳食・うんち・体重・身長）。下からせり上がる -->
+  <div class="sheetBg" id="panelBg" hidden>
+    <div class="sheet">
+      <div class="sheetHead"><button id="pCancel">キャンセル</button><b id="pTitle"></b><span style="width:70px"></span></div>
+      <div id="p-ミルク" class="panel" hidden>
+        <div class="grid3">
+          <button data-ml="20">20</button><button data-ml="40">40</button><button data-ml="60">60</button>
+          <button data-ml="80">80</button><button data-ml="100">100</button><button data-ml="120">120</button>
+          <button data-ml="140">140</button><button data-ml="160">160</button><button data-ml="200">200</button>
+        </div>
+        <div class="row">ほかの量 <input type="number" id="mlIn" inputmode="numeric"> ml <button class="small" id="mlGo">記録</button></div>
+      </div>
+      <div id="p-母乳" class="panel" hidden>
+        <div class="grid3"><button data-side="左">左</button><button data-side="右">右</button><button data-side="左右">左右</button></div>
+        <button class="go" data-side="">左右を指定せずに記録</button>
+      </div>
+      <div id="p-離乳食" class="panel" hidden>
+        <div class="row"><input id="foodIn" class="wide" placeholder="食べたもの（例：おかゆ、豆腐、玉ねぎ）"></div>
+        <div class="row">量 <input type="number" id="foodG" inputmode="numeric"> g（空でもOK）</div>
+        <button class="go" id="foodGo">記録</button>
+      </div>
+      <div id="p-うんち" class="panel" hidden>
+        <div class="grid3"><button data-st="ふつう">ふつう</button><button data-st="やわらかめ">やわらかめ</button><button data-st="かため">かため</button></div>
+      </div>
+      <div id="p-体重" class="panel" hidden>
+        <div class="row"><input type="number" id="kgIn" step="0.01" inputmode="decimal"> kg <button class="small" id="kgGo">記録</button></div>
+      </div>
+      <div id="p-身長" class="panel" hidden>
+        <div class="row"><input type="number" id="cmIn" step="0.1" inputmode="decimal"> cm <button class="small" id="cmGo">記録</button></div>
+        <div class="hint">例：68.5（小数点1けたまで）</div>
       </div>
     </div>
   </div>
@@ -292,47 +344,52 @@
   </div>
 
 <script>
+  var VERSION = '2026-11-10b';
   var token = '', lastRec = null, sleepNote = '';
   function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
-  // PWA：URL の ?k=合言葉 があれば端末に保存する（最初の1回だけ付けて開く。以後はホーム画面のアイコンから URL なしで開ける）
+  // URL の ?k=合言葉 があれば端末に保存する（最初の1回だけ付けて開く。以後はホーム画面のアイコンから URL なしで開ける）
   var qs = new URLSearchParams(location.search);
   if (qs.get('k')) store('ikuji_token', qs.get('k'));
   if (qs.get('who')) store('ikuji_who', qs.get('who'));
-  if (qs.get('k') || qs.get('who')) { try { history.replaceState(null, '', location.pathname); } catch (e) {} } // 合言葉をアドレス欄に残さない
+  if (qs.get('k') || qs.get('who')) { try { history.replaceState(null, '', location.pathname); } catch (e) {} }
   token = store('ikuji_token') || '';
   var API_URL = 'https://script.google.com/macros/s/AKfycbzGFIJO4Mi0BiY3XpKq0QYqAdasIsh5ALWYEMcolzfIJnBp51ls0iEI-5EQp0q4G4K4Fg/exec';
-  // 記録する人（ラジオ）。開いたときは、URLの who（なければ前に選んだ人、それもなければパパ）を選んだ状態にする。押せば切り替えられる
-  var whoRadios = document.querySelectorAll('input[name="who"]'), fixedWho = '';
-  function getWho() { var v = 'パパ'; whoRadios.forEach(function (r) { if (r.checked) v = r.value; }); return v; }
-  function setWho(v) { var hit = false; whoRadios.forEach(function (r) { r.checked = r.value === v; if (r.checked) hit = true; }); if (!hit && whoRadios.length) whoRadios[0].checked = true; }
-  setWho(fixedWho || store('ikuji_who') || 'パパ');
-  whoRadios.forEach(function (r) { r.addEventListener('change', function () { store('ikuji_who', getWho()); }); });
 
-  function show(id, on) { document.getElementById(id).hidden = !on; }
-  function say(text, canUndo) {
-    show('msgCard', true);
-    document.getElementById('msg').textContent = text;
-    show('undo', !!canUndo);
+  function $(id) { return document.getElementById(id); }
+  function show(id, on) { $(id).hidden = !on; }
+  function setT(id, v) { $(id).textContent = v; }
+  function pad(n) { return ('0' + n).slice(-2); }
+  function say(text, canUndo) { show('msgCard', true); $('msg').textContent = text; show('undo', !!canUndo); }
+
+  // ===== 記録する人（パパ／ママ）。前に選んだ人を覚えておく =====
+  var who = store('ikuji_who') || 'パパ';
+  function drawWho() { document.querySelectorAll('#whoSeg button').forEach(function (b) { b.classList.toggle('on', b.dataset.who === who); }); }
+  document.querySelectorAll('#whoSeg button').forEach(function (b) { b.addEventListener('click', function () { who = b.dataset.who; store('ikuji_who', who); drawWho(); }); });
+  drawWho();
+  function getWho() { return who; }
+
+  // ===== あいさつ（ちょっと関西） =====
+  function greet() {
+    var h = new Date().getHours();
+    return h < 5 ? '夜中もおつかれさん' : h < 11 ? 'おはようさん' : h < 17 ? 'こんにちは' : h < 22 ? 'おつかれさん' : 'そろそろ寝よか';
   }
-  function setT(id, v) { document.getElementById(id).textContent = v; }
+
+  // ===== まとめの表示 =====
   function drawLatest(x) {
     if (!x) return;
     [['s-feed', x.feed], ['s-diaper', x.diaper], ['s-sleep', x.sleep], ['s-food', x.food]].forEach(function (p) {
-      var el = document.getElementById(p[0]);
-      el.textContent = p[1].text;
-      el.className = 'sa' + (p[1].warn ? ' warn' : '');
+      var el = $(p[0]); el.textContent = p[1].text; el.className = 'sa' + (p[1].warn ? ' warn' : '');
     });
     sleepNote = x.sleep.note || '';
     setT('n-bf', x.bf); setT('n-milk', x.milkN); setT('n-ml', x.milkMl);
     setT('n-diaper', x.pee + x.poop); setT('n-pee', x.pee); setT('n-poop', x.poop);
     setT('n-sleep', x.sleepN); setT('n-sleeph', x.sleepH); setT('n-food', x.food.detail || '');
     drawRecent(x.recent);
-    drawChecks(x.checks);
+    checksData = x.checks || []; drawBadge();
   }
-  // 睡眠の ⚠ を押すと、どこが抜けていそうかを出す
-  document.getElementById('s-sleep').addEventListener('click', function () { if (sleepNote) say(sleepNote); });
+  $('s-sleep').addEventListener('click', function () { if (sleepNote) say(sleepNote); });
 
-  // 1行分（時刻・中身・入れた人・［消す］）を list に足す。［消す］は2回押すと消える（1回目で「本当に消す」、4秒で元に戻る）
+  // 1行分（時刻・中身・入れた人・［消す］）。［消す］は2回押すと消える
   function addRow(list, r, timeText, after) {
     var t = document.createElement('span'); t.className = 't'; t.textContent = timeText; list.appendChild(t);
     var x = document.createElement('span'); x.className = 'x'; x.textContent = r.what; list.appendChild(x);
@@ -349,48 +406,26 @@
       clearTimeout(timer);
       setBusy(true);
       call('apiDelete', { t: r.t, kind: r.kind, amount: r.amount, detail: r.detail, label: r.at + ' ' + r.what },
-        function (res) { setBusy(false); lastRec = null; tlCache = {}; say(res.message, false); if (after) after(); },
+        function (res) { setBusy(false); lastRec = null; afterChange(); say(res.message, false); if (after) after(); },
         function () { setBusy(false); });
     });
     list.appendChild(b);
     if (r.memo) { var m = document.createElement('div'); m.className = 'tlMemo'; m.textContent = 'メモ：' + r.memo; list.appendChild(m); }
   }
-  // 最後の記録と直近5件（新しい順）
+  // 最後の記録（1行）。押すと直近5件が開く（開いたかどうかは覚えておく）
   function drawRecent(rs) {
-    var list = document.getElementById('r-list');
+    var list = $('r-list');
     list.innerHTML = '';
-    if (!rs || !rs.length) { setT('r-what', 'まだ記録なし'); setT('r-at', ''); setT('r-ago', ''); setT('r-who', ''); return; }
-    setT('r-what', rs[0].what); setT('r-at', rs[0].at); setT('r-ago', rs[0].ago); setT('r-who', rs[0].who);
+    if (!rs || !rs.length) { setT('r-what', 'まだ記録ないで'); setT('r-at', ''); setT('r-ago', ''); return; }
+    setT('r-what', rs[0].what); setT('r-at', rs[0].at); setT('r-ago', rs[0].ago);
     rs.forEach(function (r) { addRow(list, r, r.at, null); });
   }
-  // Claudeからの確認（お試し）：オレンジの帯で出して、［直す］［そのまま］で処理する
-  function drawChecks(cs) {
-    var box = document.getElementById('checks');
-    box.innerHTML = '';
-    (cs || []).forEach(function (c) {
-      var d = document.createElement('div'), when = c.at.replace(/^\d{4}\//, '').replace(/(\d+:\d+):\d+$/, '$1');
-      d.className = 'chk';
-      var t = document.createElement('div'); t.className = 'ct'; t.textContent = '確認してください（' + c.kind + ' ' + when + '）';
-      var m = document.createElement('div');
-      m.textContent = '「' + (c.from || '（空）').split('+').join('・') + '」→ ' + (c.to === '（削除）' ? 'この記録を消す？' : '「' + c.to.split('+').join('・') + '」に直す？');
-      var w = document.createElement('div'); w.className = 'why'; w.textContent = c.why || '';
-      var r = document.createElement('div'); r.className = 'row';
-      [['fix', c.to === '（削除）' ? '消す' : '直す'], ['keep', 'そのまま']].forEach(function (a) {
-        var b = document.createElement('button'); b.className = 'small' + (a[0] === 'fix' ? ' fix' : ''); b.textContent = a[1];
-        b.addEventListener('click', function () {
-          if (busy) return;
-          setBusy(true);
-          call('apiCheck', { row: c.row, act: a[0], who: getWho() }, function (res) { setBusy(false); say(res.message, false); },
-            function () { setBusy(false); });
-        });
-        r.appendChild(b);
-      });
-      d.appendChild(t); d.appendChild(m); d.appendChild(w); d.appendChild(r);
-      box.appendChild(d);
-    });
-  }
-  // Apps Script の doPost に { api: 関数名, ...引数 } を送る（entry.gs の callApi_）。
-  // Content-Type を付けない（text/plain）ので、ブラウザの事前確認（preflight）が起きず、Apps Script の転送にも付いていける
+  var recOpen = store('ikuji_recopen') === '1';
+  function drawRecOpen() { $('recent').classList.toggle('open', recOpen); show('r-list', recOpen); }
+  $('recHead').addEventListener('click', function () { recOpen = !recOpen; store('ikuji_recopen', recOpen ? '1' : '0'); drawRecOpen(); });
+  drawRecOpen();
+
+  // ===== Apps Script を呼ぶ（doPost に { api, ...引数 }。Content-Type を付けないので事前確認が起きない） =====
   function call(fn, req, done, fail) {
     req.token = token; req.api = fn;
     fetch(API_URL, { method: 'POST', body: JSON.stringify(req), redirect: 'follow' })
@@ -410,21 +445,15 @@
     if (!token) { show('tokenCard', true); if (done) done(); return; }
     call('apiLatest', {}, done, done);
   }
-
-  document.getElementById('tokenSave').addEventListener('click', function () {
-    token = document.getElementById('tokenIn').value.trim();
-    store('ikuji_token', token);
-    show('tokenCard', false);
-    refresh();
+  $('tokenSave').addEventListener('click', function () {
+    token = $('tokenIn').value.trim(); store('ikuji_token', token); show('tokenCard', false);
+    refresh(function () { if (token) { prefetchAll(); } });
   });
 
-  // ===== いつの記録？（日付と時刻を分ける。2026-11-06） =====
-  // 2026-11-08 夕：日時を押すと、マップのように日付・時・分の3列のホイールが1枚で開く。時刻だけなら直接入力の欄でも決められる
-  var nowBtn = document.getElementById('nowBtn'), typed = document.getElementById('typed');
-  var selDay = '', selH = 0, selM = 0; // 選んでいる日付（'yyyy-MM-dd'）・時・分
-  var custom = false;
+  // ===== いつの記録？ =====
+  var nowBtn = $('nowBtn'), typed = $('typed'), dtBtn = $('dtBtn');
+  var selDay = '', selH = 0, selM = 0, custom = false;
   var WD = ['日', '月', '火', '水', '木', '金', '土'];
-  function pad(n) { return ('0' + n).slice(-2); }
   function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
   function today0() { var d = new Date(); d.setHours(0, 0, 0, 0); return d; }
   function addDays(d, n) { var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; }
@@ -434,301 +463,242 @@
     return diff === 0 ? '今日 ' + md : diff === 1 ? '昨日 ' + md : md;
   }
   function parseYmd(s) { var p = s.split('-'); return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])); }
-  // 選べる日付：30日前〜今日（古い順。今日がいちばん下で、上に回すと前の日へ）
   function dayList() { var a = []; for (var i = 29; i >= 0; i--) a.push(ymd(addDays(today0(), -i))); return a; }
-  function drawDT() { setT('dtDay', dayLabel(parseYmd(selDay))); setT('dtTime', selH + ':' + pad(selM)); }
-  function markCustom() { custom = true; nowBtn.classList.remove('on'); }
-  function useNow() {
-    var d = new Date();
-    selDay = ymd(today0()); selH = d.getHours(); selM = d.getMinutes();
-    typed.value = ''; custom = false; nowBtn.classList.add('on'); drawDT();
-  }
-
-  // ===== ホイール =====
-  var ITEM = 44, wD = document.getElementById('wD'), wH = document.getElementById('wH'), wM = document.getElementById('wM'), wDays = [];
+  function drawDT() { setT('dtDay', dayLabel(parseYmd(selDay))); setT('dtTime', selH + ':' + pad(selM)); dtBtn.classList.toggle('custom', custom); }
+  function useNow() { var d = new Date(); selDay = ymd(today0()); selH = d.getHours(); selM = d.getMinutes(); typed.value = ''; custom = false; drawDT(); }
+  // ホイール
+  var ITEM = 44, wD = $('wD'), wH = $('wH'), wM = $('wM'), wDays = [];
   function fillCol(col, labels) {
     col.innerHTML = '';
-    labels.forEach(function (t, i) {
-      var e = document.createElement('div'); e.textContent = t;
-      e.addEventListener('click', function () { col.scrollTop = i * ITEM; }); // 押した行を真ん中に
-      col.appendChild(e);
-    });
+    labels.forEach(function (t, i) { var e = document.createElement('div'); e.textContent = t; e.addEventListener('click', function () { col.scrollTop = i * ITEM; }); col.appendChild(e); });
   }
   function colIndex(col, n) { return Math.max(0, Math.min(n - 1, Math.round(col.scrollTop / ITEM))); }
   var HOURS = [], MINS = [];
   for (var hh = 0; hh < 24; hh++) HOURS.push(String(hh));
   for (var mm = 0; mm < 60; mm++) MINS.push(pad(mm));
-  document.getElementById('dtBtn').addEventListener('click', function () {
+  dtBtn.addEventListener('click', function () {
     wDays = dayList();
-    fillCol(wD, wDays.map(function (k) { return dayLabel(parseYmd(k)); }));
+    fillCol(wD, wDays.map(function (k) { return dayLabel(parseYmd(k)).replace('今日 ', '').replace('昨日 ', ''); }));
     fillCol(wH, HOURS); fillCol(wM, MINS);
+    typed.value = '';
     show('wheelBg', true);
-    // 開いてから位置を合わせる（見えていないと位置が決まらないため）
     var di = wDays.indexOf(selDay);
     wD.scrollTop = (di < 0 ? wDays.length - 1 : di) * ITEM; wH.scrollTop = selH * ITEM; wM.scrollTop = selM * ITEM;
   });
-  document.getElementById('wCancel').addEventListener('click', function () { show('wheelBg', false); });
-  document.getElementById('wheelBg').addEventListener('click', function (e) { if (e.target === this) show('wheelBg', false); });
-  document.getElementById('wOk').addEventListener('click', function () {
+  $('wCancel').addEventListener('click', function () { show('wheelBg', false); });
+  $('wheelBg').addEventListener('click', function (e) { if (e.target === this) show('wheelBg', false); });
+  $('wOk').addEventListener('click', function () {
+    if (typed.value.trim() && !applyTyped(false)) return;
     selDay = wDays[colIndex(wD, wDays.length)]; selH = colIndex(wH, 24); selM = colIndex(wM, 60);
-    show('wheelBg', false); typed.value = ''; markCustom(); drawDT();
+    show('wheelBg', false); custom = true; drawDT();
   });
-  // 時刻の直接入力（2026-11-09 見直し）：「2130」「930」「21:30」。日付は上のホイールで選ぶ（iPhone の数字キーボードには「/」も空白もなく、「11/5 2130」が打てなかったため）
-  // 3〜4桁打ち終わったらすぐ反映する（キーボードを閉じる前に記録ボタンを押しても取りこぼさないように）。
-  // PC など「/」が打てるキーボードからの「11/5 2130」「11.5 2130」は、今までどおり日付も読む
+  // 時刻を打つ：「2130」「930」「21:30」→ ホイールを動かす（決定で確定）
   function applyTyped(quiet) {
-    var s = typed.value.replace(/[０-９：／．]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xfee0); });
-    var m = s.match(/^\s*(?:(\d{1,2})[\/.](\d{1,2})\s+)?(\d{1,2}):?(\d{2})\s*$/);
-    if (!m || Number(m[3]) > 23 || Number(m[4]) > 59) { if (!quiet) say('時刻は「2130」や「930」のように入れてください。日付は上の日時のボタンで選べます。'); return false; }
-    if (m[1]) {
-      var y = new Date().getFullYear(), d = new Date(y, Number(m[1]) - 1, Number(m[2]));
-      if (d > today0()) d = new Date(y - 1, Number(m[1]) - 1, Number(m[2])); // 先の日付なら去年
-      if (dayList().indexOf(ymd(d)) < 0) { if (!quiet) say('30日より前の日付は、ここでは選べません。'); return false; }
-      selDay = ymd(d);
-    }
-    selH = Number(m[3]); selM = Number(m[4]);
-    markCustom(); drawDT();
+    var s = typed.value.replace(/[０-９：]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xfee0); });
+    var m = s.match(/^\s*(\d{1,2}):?(\d{2})\s*$/);
+    if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) { if (!quiet) say('時刻は「2130」や「930」のように打ってください。'); return false; }
+    wH.scrollTop = Number(m[1]) * ITEM; wM.scrollTop = Number(m[2]) * ITEM;
     return true;
   }
-  typed.addEventListener('input', function () { if (/^\s*\d{4}\s*$/.test(typed.value) || /^\s*\d{1,2}:\d{2}\s*$/.test(typed.value)) applyTyped(true); });
-  typed.addEventListener('change', function () { if (typed.value.trim()) applyTyped(false); });
-  // 「今」：時刻を今に戻し、上のまとめと直近5件も読み直す。読み直しの間は「読み込み中…」を出す
-  nowBtn.addEventListener('click', function () {
-    useNow();
-    if (busy) return;
-    show('nowLd', true);
-    refresh(function () { show('nowLd', false); });
-  });
+  typed.addEventListener('input', function () { if (/^\s*\d{3,4}\s*$/.test(typed.value) || /^\s*\d{1,2}:\d{2}\s*$/.test(typed.value)) applyTyped(true); });
+  nowBtn.addEventListener('click', function () { useNow(); if (busy) return; refresh(); });
   useNow();
   function atValue() { return custom ? selDay + 'T' + pad(selH) + ':' + pad(selM) : null; }
 
-  // 記録
+  // ===== 記録 =====
   var busy = false, slowTimer = null;
   function setBusy(on) {
-    busy = on;
-    document.body.classList.toggle('busy', on);
-    clearTimeout(slowTimer);
-    if (on) slowTimer = setTimeout(function () {
-      say('時間がかかっています。もう少し待つと記録の結果が出ます。押し直さずにお待ちください（押し直しても二重には入りません）。');
-    }, 8000);
+    busy = on; document.body.classList.toggle('busy', on); clearTimeout(slowTimer);
+    if (on) slowTimer = setTimeout(function () { say('ちょっと時間かかってます。もう少し待つと結果が出ます。押し直さんでも二重には入りません。'); }, 8000);
   }
+  // 記録・削除のあと：ながれ・みよか・しゃべろの覚えている分を捨てて、裏で取り直す
+  function afterChange() { tlCache = {}; prefetchAll(); }
   function record(items) {
     if (!token) { show('tokenCard', true); return; }
-    if (busy) return; // 送信中は、ほかのボタンを受け付けない
-    // 時刻の欄に打ちかけの文字が残っていれば、送る前に読む（キーボードを閉じずに記録ボタンを押したとき）
-    if (typed.value.trim() && !applyTyped(false)) return;
-    var req = { items: items, who: getWho(), at: atValue(),
-                rid: Date.now() + '-' + Math.random().toString(36).slice(2) };
-    setBusy(true);
-    say('記録しています…');
+    if (busy) return;
+    var req = { items: items, who: getWho(), at: atValue(), rid: Date.now() + '-' + Math.random().toString(36).slice(2) };
+    setBusy(true); closePanels();
+    say('つけてます…');
     call('apiRecord', req, function (res) {
       setBusy(false);
       lastRec = res.dup ? null : { rows: res.rows, kinds: res.kinds };
-      tlCache = {};
+      afterChange();
       say(res.message, !res.dup);
-      closePanels();
       useNow();
     }, function () { setBusy(false); });
   }
+  // 記録の中身は下からせり上がる画面に
+  var PTITLE = { 'ミルク': 'ミルクの量', '母乳': '母乳', '離乳食': '離乳食', 'うんち': 'うんちの様子', '体重': '体重', '身長': '身長' };
   function closePanels() {
+    show('panelBg', false);
     document.querySelectorAll('.panel').forEach(function (p) { p.hidden = true; });
     document.querySelectorAll('#kinds button').forEach(function (b) { b.classList.remove('on'); });
   }
+  function openPanel(k) { closePanels(); $('p-' + k).hidden = false; setT('pTitle', PTITLE[k] || k); show('panelBg', true); }
+  $('pCancel').addEventListener('click', closePanels);
+  $('panelBg').addEventListener('click', function (e) { if (e.target === this) closePanels(); });
   document.querySelectorAll('#kinds button').forEach(function (b) {
     b.addEventListener('click', function () {
-      var k = b.dataset.k, panel = document.getElementById('p-' + k);
-      closePanels();
-      if (panel) { panel.hidden = false; b.classList.add('on'); return; }
+      var k = b.dataset.k;
+      if ($('p-' + k)) { openPanel(k); b.classList.add('on'); return; }
       if (k === '両方') record([{ kind: 'おしっこ' }, { kind: 'うんち' }]);
       else record([{ kind: k }]);
     });
   });
-  document.querySelectorAll('[data-ml]').forEach(function (b) {
-    b.addEventListener('click', function () { record([{ kind: 'ミルク', amount: Number(b.dataset.ml), unit: 'ml' }]); });
-  });
-  document.getElementById('mlGo').addEventListener('click', function () {
-    var v = Number(document.getElementById('mlIn').value);
-    if (v > 0) record([{ kind: 'ミルク', amount: v, unit: 'ml' }]);
-  });
-  document.querySelectorAll('[data-side]').forEach(function (b) {
-    b.addEventListener('click', function () { record([{ kind: '母乳', detail: b.dataset.side }]); });
-  });
-  document.querySelectorAll('[data-st]').forEach(function (b) {
-    b.addEventListener('click', function () { record([{ kind: 'うんち', detail: b.dataset.st }]); });
-  });
-  document.getElementById('foodGo').addEventListener('click', function () {
-    var f = document.getElementById('foodIn').value.trim().replace(/[、,，・\s]+/g, '+').replace(/^\+|\+$/g, '');
-    var g = Number(document.getElementById('foodG').value);
+  document.querySelectorAll('[data-ml]').forEach(function (b) { b.addEventListener('click', function () { record([{ kind: 'ミルク', amount: Number(b.dataset.ml), unit: 'ml' }]); }); });
+  $('mlGo').addEventListener('click', function () { var v = Number($('mlIn').value); if (v > 0) { $('mlIn').value = ''; record([{ kind: 'ミルク', amount: v, unit: 'ml' }]); } });
+  document.querySelectorAll('[data-side]').forEach(function (b) { b.addEventListener('click', function () { record([{ kind: '母乳', detail: b.dataset.side }]); }); });
+  document.querySelectorAll('[data-st]').forEach(function (b) { b.addEventListener('click', function () { record([{ kind: 'うんち', detail: b.dataset.st }]); }); });
+  $('foodGo').addEventListener('click', function () {
+    var f = $('foodIn').value.trim().replace(/[、,，・\s]+/g, '+').replace(/^\+|\+$/g, '');
+    var g = Number($('foodG').value);
     record([{ kind: '離乳食', detail: f, amount: g > 0 ? g : '', unit: g > 0 ? 'g' : '' }]);
-    document.getElementById('foodIn').value = ''; document.getElementById('foodG').value = '';
+    $('foodIn').value = ''; $('foodG').value = '';
   });
-  document.getElementById('kgGo').addEventListener('click', function () {
-    var v = Number(document.getElementById('kgIn').value);
-    if (v > 0) record([{ kind: '体重', amount: v > 100 ? v / 1000 : v, unit: 'kg' }]);
+  $('kgGo').addEventListener('click', function () { var v = Number($('kgIn').value); if (v > 0) { $('kgIn').value = ''; record([{ kind: '体重', amount: v > 100 ? v / 1000 : v, unit: 'kg' }]); } });
+  $('cmGo').addEventListener('click', function () {
+    var v = Number($('cmIn').value);
+    if (v >= 30 && v <= 130) { $('cmIn').value = ''; record([{ kind: '身長', amount: Math.round(v * 10) / 10, unit: 'cm' }]); }
+    else if (v > 0) say('身長はcmで入れてください（例：68.5）。');
   });
-  document.getElementById('cmGo').addEventListener('click', function () {
-    var v = Number(document.getElementById('cmIn').value);
-    if (v >= 30 && v <= 130) {
-      record([{ kind: '身長', amount: Math.round(v * 10) / 10, unit: 'cm' }]);
-      document.getElementById('cmIn').value = '';
-    } else if (v > 0) {
-      say('身長はcmで入れてください（例：68.5）。');
-    }
-  });
-  document.getElementById('closeMsg').addEventListener('click', function () { show('msgCard', false); });
-  document.getElementById('undo').addEventListener('click', function () {
-    if (!lastRec) return;
-    call('apiUndo', lastRec, function (res) { lastRec = null; say(res.message, false); });
-  });
+  $('closeMsg').addEventListener('click', function () { show('msgCard', false); });
+  $('undo').addEventListener('click', function () { if (!lastRec) return; call('apiUndo', lastRec, function (res) { lastRec = null; afterChange(); say(res.message, false); }); });
 
-  // ===== タイムライン（2026-11-06）：1日分を時刻順に。日付は ‹ › で1日ずつ送る =====
-  var tlDay = today0();
-  // 画面の切り替え：'rec'（記録する）／'tl'（タイムライン）／'gr'（グラフ）
+  // ===== 画面の切り替え（下のタブ・横スワイプ） =====
+  var TABS = { rec: ['tabRec', 'viewRec', 'つけとこ'], tl: ['tabTl', 'viewTl', 'ながれ'], gr: ['tabGr', 'viewGr', 'みよか'], ai: ['tabAi', 'viewAi', 'しゃべろ'] };
+  var ORDER = ['rec', 'tl', 'gr', 'ai'];
   var curTab = 'rec';
   function setTab(name) {
     curTab = name;
-    show('viewRec', name === 'rec'); show('viewTl', name === 'tl'); show('viewGr', name === 'gr');
-    document.getElementById('tabRec').classList.toggle('on', name === 'rec');
-    document.getElementById('tabTl').classList.toggle('on', name === 'tl');
-    document.getElementById('tabGr').classList.toggle('on', name === 'gr');
+    for (var k in TABS) { $(TABS[k][0]).classList.toggle('on', k === name); show(TABS[k][1], k === name); }
+    setT('topName', TABS[name][2]);
+    setT('topSub', name === 'rec' ? greet() : name === 'tl' ? '日ごとの記録' : name === 'gr' ? '2週間の流れ' : 'お知らせ');
+    window.scrollTo(0, 0);
     if (name === 'tl') loadDay();
-    if (name === 'gr') { if (gData) drawRhythm(); loadGraph(); } // 前に読んだ分をすぐ描いてから、裏で読み直す
+    if (name === 'gr') { if (gData) drawRhythm(); if (sData) drawStats(); loadGraph(); loadStats(); }
+    if (name === 'ai') { if (nData) drawNotices(); loadNotices(); }
   }
-  // 読んだ日のデータは覚えておき、次に開いたときはまず前のを出してから裏で読み直す（2026-11-09。待ち時間を減らす）
-  var tlCache = {};
+  for (var tk in TABS) (function (k) { $(TABS[k][0]).addEventListener('click', function () { setTab(k); }); })(tk);
+  // 横スワイプ：グラフ・ホイール・入力欄の上から始めた動きは無視。はっきり横に動かしたときだけ
+  var sx = null, sy = null, sOk = false;
+  document.addEventListener('touchstart', function (e) {
+    var t = e.touches[0], el = e.target;
+    sOk = !(el.closest && el.closest('svg, .wheel, .sheetBg, input, textarea'));
+    sx = t.clientX; sy = t.clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', function (e) {
+    if (!sOk || sx == null) return;
+    var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    sx = null;
+    if (Math.abs(dx) < 70 || Math.abs(dy) > 50) return;
+    var i = ORDER.indexOf(curTab) + (dx < 0 ? 1 : -1);
+    if (i >= 0 && i < ORDER.length) setTab(ORDER[i]);
+  }, { passive: true });
+
+  // ===== ながれ =====
+  var tlDay = today0(), tlCache = {};
   function loadDay() {
     if (!token) { show('tokenCard', true); return; }
     setT('tlDate', dayLabel(tlDay));
-    document.getElementById('tlNext').disabled = tlDay >= today0();
+    $('tlNext').disabled = tlDay >= today0();
     var key = ymd(tlDay);
-    if (tlCache[key]) drawDay(tlCache[key]); else { setT('tlSum', '読み込み中…'); document.getElementById('tlList').innerHTML = ''; }
-    call('apiDay', { date: key }, function (res) {
-      tlCache[key] = res;
-      if (ymd(tlDay) === key) drawDay(res);
-    }, function () { if (!tlCache[key]) setT('tlSum', '読み込めませんでした。'); });
+    if (tlCache[key]) drawDay(tlCache[key]); else { setT('tlSum', 'ちょっと待ってや…'); $('tlList').innerHTML = ''; }
+    fetchDay(key, function (res) { if (ymd(tlDay) === key) drawDay(res); }, function () { if (!tlCache[key]) setT('tlSum', '読み込めませんでした。'); });
+  }
+  function fetchDay(key, done, fail) {
+    call('apiDay', { date: key }, function (res) { tlCache[key] = res; if (done) done(res); }, fail);
   }
   function drawDay(res) {
-      var d = res.day, s = d.sum, sum = document.getElementById('tlSum');
-      sum.innerHTML = '';
-      [['母乳', s.bf + '回'], ['ミルク', s.milkN + '回 ' + s.milkMl + 'ml'], ['おしっこ', s.pee + '回'], ['うんち', s.poop + '回'],
-       ['睡眠', s.sleepN + '回 ' + s.sleepText], ['離乳食', s.food + '回']].forEach(function (p, i) {
-        var span = document.createElement('span');
-        span.innerHTML = (i ? '　' : '') + p[0] + ' <b></b>';
-        span.querySelector('b').textContent = p[1];
-        sum.appendChild(span);
-      });
-      var list = document.getElementById('tlList');
-      list.innerHTML = '';
-      if (!d.rows.length) { list.textContent = 'この日の記録はありません。'; return; }
-      d.rows.forEach(function (r) { addRow(list, r, r.hm, function () { delete tlCache[d.date]; loadDay(); }); });
+    var d = res.day, s = d.sum, sum = $('tlSum');
+    sum.innerHTML = '';
+    [['母乳', s.bf + '回'], ['ミルク', s.milkN + '回 ' + s.milkMl + 'ml'], ['💧', s.pee + '回'], ['💩', s.poop + '回'],
+     ['睡眠', s.sleepN + '回 ' + s.sleepText], ['離乳食', s.food + '回']].forEach(function (p, i) {
+      var span = document.createElement('span'); span.innerHTML = (i ? '　' : '') + p[0] + ' <b></b>'; span.querySelector('b').textContent = p[1]; sum.appendChild(span);
+    });
+    var list = $('tlList'); list.innerHTML = '';
+    if (!d.rows.length) { list.textContent = 'この日の記録はないで。'; return; }
+    d.rows.forEach(function (r) { addRow(list, r, r.hm, function () { delete tlCache[d.date]; loadDay(); }); });
   }
-  document.getElementById('tabRec').addEventListener('click', function () { setTab('rec'); });
-  document.getElementById('tabTl').addEventListener('click', function () { setTab('tl'); });
-  document.getElementById('tabGr').addEventListener('click', function () { setTab('gr'); });
+  $('tlPrev').addEventListener('click', function () { tlDay = addDays(tlDay, -1); loadDay(); });
+  $('tlNext').addEventListener('click', function () { if (tlDay < today0()) { tlDay = addDays(tlDay, 1); loadDay(); } });
 
-  // ===== グラフ（2026-11-08）：予測2枚と1日のリズム。古いブラウザ（Kindle Fire の Silk）でも動くよう、ここは古い書き方にしている =====
+  // ===== みよか：予想（つけとこの下）と1日のリズム =====
   var gData = null, rhMode = 'all';
   var ARROW = { up: '↗ 多そう', down: '↘ 少なそう', flat: '→ いつも通り' };
   function loadGraph() {
-    if (!token) { show('tokenCard', true); return; }
-    if (!gData) setT('rhRead', '読み込み中…');
-    // グラフ画面が隠れているとき（先読み）は、幅が取れないので描かない。開いたときに setTab で描く
-    call('apiGraph', {}, function (res) { gData = res; drawForecast(res.fc); if (curTab === 'gr') { drawRhythm(); setT('rhRead', '点や帯をなぞると、その記録がここに出ます'); } },
-      function () { if (!gData) setT('rhRead', '読み込めませんでした。'); });
+    if (!token) return;
+    call('apiGraph', {}, function (res) { gData = res; drawForecast(res.fc); if (curTab === 'gr') drawRhythm(); }, function () {});
   }
   function drawForecast(fc) {
     var m = fc.milk, s = fc.sleep;
-    setT('g-ml', m ? m.land : '–'); setT('g-mlU', m ? 'いつも ' + m.usual + 'ml' : '記録が3日分たまると出ます');
-    var a = document.getElementById('g-mlA'); a.textContent = m ? ARROW[m.trend] : ''; a.className = 'fa ' + (m ? m.trend : '');
-    setT('g-sl', s ? s.landH : '–'); setT('g-slU', s ? 'いつも ' + s.usualH + '時間' : '');
-    var b = document.getElementById('g-slA'); b.textContent = s ? ARROW[s.trend] : ''; b.className = 'fa ' + (s ? s.trend : '');
+    setT('g-ml', m ? m.land : '–');
+    var a = $('g-mlA'); a.textContent = m ? ARROW[m.trend] : ''; a.className = 'fa ' + (m ? m.trend : '');
+    setT('g-sl', s ? s.landH : '–');
+    var b = $('g-slA'); b.textContent = s ? ARROW[s.trend] : ''; b.className = 'fa ' + (s ? s.trend : '');
     var f = fc.nextFeed;
-    document.getElementById('g-feed').innerHTML = '';
-    setT('g-feed', f ? (f.past ? '次の授乳 ' + f.range + '（目安を過ぎています）' : '次の授乳 ' + f.range + '・あと' + f.left) : '次の授乳：記録がたまると出ます');
+    setT('g-feed', (m ? 'いつも ' + m.usual + 'ml・' : '') + (f ? (f.past ? '次の授乳 ' + f.range + '（目安を過ぎてます）' : '次の授乳 ' + f.range + '・あと' + f.left) : '次の授乳：記録がたまると出ます'));
     var sl = '';
-    if (fc.asleep) sl = 'ねんね中・' + fc.asleep.from + 'から' + (fc.asleep.wakeRange ? '・起きそう ' + fc.asleep.wakeRange : '');
-    else if (fc.nextSleep) sl = fc.nextSleep.past ? '次のねんね ' + fc.nextSleep.range + '（目安を過ぎています）' : '次のねんね ' + fc.nextSleep.range + '・あと' + fc.nextSleep.left;
-    setT('g-sleep', sl || '次のねんね：記録がたまると出ます');
+    if (fc.asleep) sl = 'ねんね中 ' + fc.asleep.from + '〜' + (fc.asleep.wakeRange ? '・起きそう ' + fc.asleep.wakeRange : '');
+    else if (fc.nextSleep) sl = fc.nextSleep.past ? '次のねんね ' + fc.nextSleep.range + '（目安を過ぎてます）' : '次のねんね ' + fc.nextSleep.range + '・あと' + fc.nextSleep.left;
+    setT('g-sleep', (s ? 'いつも ' + s.usualH + '時間・' : '') + (sl || '次のねんね：記録がたまると出ます'));
   }
-  // 1日のリズム：上の行が今日、下の行が昨日。全体＝0〜24時、昼＝6〜18時、夜＝18時〜翌6時
   var RANGE = { all: [0, 24], day: [6, 18], night: [18, 30] };
   var COLOR = { 'ミルク': '#12a886', '母乳': '#f0a020', '離乳食': '#e879a6', 'お風呂': '#8aa0b8' };
   var rhHits = [];
-  function svgEl(tag, attrs, parent) {
-    var e = document.createElementNS('http://www.w3.org/2000/svg', tag);
-    for (var k in attrs) e.setAttribute(k, attrs[k]);
-    parent.appendChild(e); return e;
-  }
+  function svgEl(tag, attrs, parent) { var e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (var k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; }
+  function clearSvg(svg) { while (svg.firstChild) svg.removeChild(svg.firstChild); }
   function hm(t) { var d = new Date(t); return d.getHours() + ':' + pad(d.getMinutes()); }
   function md(t) { var d = new Date(t); return (d.getMonth() + 1) + '/' + d.getDate(); }
   function durHM(ms) { var m = Math.round(ms / 60000); return Math.floor(m / 60) + ':' + pad(m % 60); }
   function drawRhythm() {
-    var svg = document.getElementById('rhSvg');
-    while (svg.firstChild) svg.removeChild(svg.firstChild);
-    rhHits = [];
+    var svg = $('rhSvg'); clearSvg(svg); rhHits = [];
     if (!gData) return;
-    var W = svg.clientWidth || svg.parentNode.clientWidth - 24, L = 44, R = 6, rowH = 80, top = 4;
+    var W = svg.clientWidth || svg.parentNode.clientWidth - 24, L = 40, R = 6, rowH = 64, top = 4;
     var r = RANGE[rhMode], span = (r[1] - r[0]) * 3600000;
-    svg.setAttribute('height', top + rowH * 2 + 22);
-    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + (top + rowH * 2 + 22));
-    var t0 = new Date(gData.today + 'T00:00:00+09:00').getTime(); // 今日の0時（日本時間）
-    var ev = gData.ev, now = gData.now;
-    // 睡眠の帯：寝た→起きた。起きたがなければ今まで
+    svg.setAttribute('height', top + rowH * 2 + 18);
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + (top + rowH * 2 + 18));
+    var t0 = new Date(gData.today + 'T00:00:00+09:00').getTime(), ev = gData.ev, now = gData.now;
     var sleeps = [], open = null;
-    ev.forEach(function (e) {
-      if (e.k === '寝た') open = e.t;
-      else if (e.k === '起きた' && open != null) { sleeps.push([open, e.t, false]); open = null; }
-    });
+    ev.forEach(function (e) { if (e.k === '寝た') open = e.t; else if (e.k === '起きた' && open != null) { sleeps.push([open, e.t, false]); open = null; } });
     if (open != null) sleeps.push([open, now, true]);
     var x = function (t, base) { return L + (t - base) / span * (W - L - R); };
-    // 目盛り：2時間おき、数字だけ（スマホで文字がつぶれないように）
     for (var h = r[0]; h <= r[1]; h += 2) {
       var gx = L + (h - r[0]) / (r[1] - r[0]) * (W - L - R);
       svgEl('line', { x1: gx, x2: gx, y1: top, y2: top + rowH * 2, stroke: '#ececf2' }, svg);
-      var tx = svgEl('text', { x: gx, y: top + rowH * 2 + 15, 'font-size': 11, fill: '#777', 'text-anchor': 'middle' }, svg);
-      tx.textContent = String(h % 24);
+      var tx = svgEl('text', { x: gx, y: top + rowH * 2 + 13, 'font-size': 10, fill: '#777', 'text-anchor': 'middle' }, svg); tx.textContent = String(h % 24);
     }
-    // 夜の表示で、まだ今夜（18時）になっていないときは、ゆうべと一昨日の夜を並べる（今夜の行が空にならないように）
     var shift = rhMode === 'night' && now < t0 + 18 * 3600000 ? 1 : 0;
     var NAMES = rhMode === 'night' ? ['今夜', 'ゆうべ', '一昨日'] : ['今日', '昨日'];
     [0, 1].forEach(function (row) {
       var dayBase = t0 - (row + shift) * 86400000, base = dayBase + r[0] * 3600000, end = base + span, y0 = top + row * rowH;
-      // 行の名前は2段（「今日」と日付）にして、左の幅を取りすぎないようにする
-      var lb = svgEl('text', { x: 0, y: y0 + rowH / 2 - 2, 'font-size': 12, fill: '#555' }, svg);
-      lb.textContent = NAMES[row + shift];
-      var lb2 = svgEl('text', { x: 0, y: y0 + rowH / 2 + 13, 'font-size': 11, fill: '#888' }, svg);
-      lb2.textContent = md(dayBase + 3600000);
-      var by = y0 + rowH / 2 - 10;
+      var lb = svgEl('text', { x: 0, y: y0 + rowH / 2 - 2, 'font-size': 11, fill: '#555' }, svg); lb.textContent = NAMES[row + shift];
+      var lb2 = svgEl('text', { x: 0, y: y0 + rowH / 2 + 11, 'font-size': 10, fill: '#888' }, svg); lb2.textContent = md(dayBase + 3600000);
+      var by = y0 + rowH / 2 - 8;
       sleeps.forEach(function (s) {
         var a = Math.max(s[0], base), b = Math.min(s[1], end);
         if (b <= a) return;
-        var sh = new Date(s[0]).getHours(), night = sh >= 19 || sh < 6;
-        var x1 = x(a, base), x2 = x(b, base);
-        svgEl('rect', { x: x1, y: by, width: Math.max(2, x2 - x1), height: 20, rx: 4, fill: night ? '#2f6fd6' : '#a9c8f3', opacity: s[2] ? 0.6 : 1 }, svg);
-        if (x2 - x1 > 34) { var t = svgEl('text', { x: (x1 + x2) / 2, y: by + 14, 'font-size': 11, fill: night ? '#fff' : '#234', 'text-anchor': 'middle' }, svg); t.textContent = durHM(s[1] - s[0]); }
+        var sh = new Date(s[0]).getHours(), night = sh >= 19 || sh < 6, x1 = x(a, base), x2 = x(b, base);
+        svgEl('rect', { x: x1, y: by, width: Math.max(2, x2 - x1), height: 16, rx: 4, fill: night ? '#2f6fd6' : '#a9c8f3', opacity: s[2] ? 0.6 : 1 }, svg);
+        if (x2 - x1 > 34) { var t = svgEl('text', { x: (x1 + x2) / 2, y: by + 12, 'font-size': 10, fill: night ? '#fff' : '#234', 'text-anchor': 'middle' }, svg); t.textContent = durHM(s[1] - s[0]); }
         rhHits.push({ row: row, x1: x1, x2: x2, text: md(s[0]) + ' ' + hm(s[0]) + '〜' + (s[2] ? '今' : hm(s[1])) + '　' + (night ? '夜の睡眠 ' : '昼寝 ') + durHM(s[1] - s[0]) });
       });
       ev.forEach(function (e) {
         if (e.t < base || e.t > end) return;
         var ex = x(e.t, base), label = e.k + (e.a ? ' ' + e.a + (e.k === 'ミルク' ? 'ml' : '') : '') + (e.d ? ' ' + e.d : '');
         if (COLOR[e.k]) {
-          svgEl('circle', { cx: ex, cy: by - 12, r: 5, fill: COLOR[e.k] }, svg);
-          if (e.k === 'ミルク' && e.a) { var mt = svgEl('text', { x: ex, y: by - 20, 'font-size': 10, fill: '#555', 'text-anchor': 'middle' }, svg); mt.textContent = e.a; }
-        } else if (e.k === 'おしっこ') {
-          svgEl('path', { d: 'M' + ex + ' ' + (by + 26) + ' l5 9 l-10 0 z', fill: '#1a8f2e' }, svg);
-        } else if (e.k === 'うんち') {
-          svgEl('rect', { x: ex - 4, y: by + 27, width: 8, height: 8, fill: '#6b46c1' }, svg);
-        } else return;
+          svgEl('circle', { cx: ex, cy: by - 9, r: 4, fill: COLOR[e.k] }, svg);
+          if (e.k === 'ミルク' && e.a) { var mt = svgEl('text', { x: ex, y: by - 16, 'font-size': 9, fill: '#555', 'text-anchor': 'middle' }, svg); mt.textContent = e.a; }
+        } else if (e.k === 'おしっこ') svgEl('path', { d: 'M' + ex + ' ' + (by + 20) + ' l4 7 l-8 0 z', fill: '#1a8f2e' }, svg);
+        else if (e.k === 'うんち') svgEl('rect', { x: ex - 3, y: by + 21, width: 6, height: 6, fill: '#6b46c1' }, svg);
+        else return;
         rhHits.push({ row: row, x1: ex - 1, x2: ex + 1, point: true, text: md(e.t) + ' ' + hm(e.t) + '　' + label });
       });
-      // 今の時刻の線（今日の行だけ）
       if (now >= base && now <= end) svgEl('line', { x1: x(now, base), x2: x(now, base), y1: y0 + 4, y2: y0 + rowH - 4, stroke: '#e8707a', 'stroke-dasharray': '3 3' }, svg);
     });
   }
-  // なぞったところの記録を、グラフの上の1行に出す（指に隠れないように）
   function rhPick(clientX, clientY) {
-    var svg = document.getElementById('rhSvg'), b = svg.getBoundingClientRect();
-    var px = clientX - b.left, row = clientY - b.top < 4 + 80 ? 0 : 1, best = null, bd = 1e9;
+    var svg = $('rhSvg'), b = svg.getBoundingClientRect();
+    var px = clientX - b.left, row = clientY - b.top < 4 + 64 ? 0 : 1, best = null, bd = 1e9;
     rhHits.forEach(function (h) {
       if (h.row !== row) return;
       var d = h.point ? Math.abs(px - h.x1) : (px >= h.x1 && px <= h.x2 ? 6 : Math.min(Math.abs(px - h.x1), Math.abs(px - h.x2)) + 6);
@@ -736,26 +706,179 @@
     });
     setT('rhRead', best && bd < 24 ? best.text : '点や帯をなぞると、その記録がここに出ます');
   }
-  var rhSvg = document.getElementById('rhSvg');
+  var rhSvg = $('rhSvg');
   rhSvg.addEventListener('touchstart', function (e) { var t = e.touches[0]; rhPick(t.clientX, t.clientY); }, { passive: true });
   rhSvg.addEventListener('touchmove', function (e) { var t = e.touches[0]; rhPick(t.clientX, t.clientY); }, { passive: true });
   rhSvg.addEventListener('mousemove', function (e) { rhPick(e.clientX, e.clientY); });
   document.querySelectorAll('#rhSeg button').forEach(function (b) {
-    b.addEventListener('click', function () {
-      rhMode = b.getAttribute('data-r');
-      document.querySelectorAll('#rhSeg button').forEach(function (x) { x.classList.toggle('on', x === b); });
-      drawRhythm();
-    });
+    b.addEventListener('click', function () { rhMode = b.getAttribute('data-r'); document.querySelectorAll('#rhSeg button').forEach(function (x) { x.classList.toggle('on', x === b); }); drawRhythm(); });
   });
-  window.addEventListener('resize', function () { if (curTab === 'gr') drawRhythm(); });
-  document.getElementById('tlPrev').addEventListener('click', function () { tlDay = addDays(tlDay, -1); loadDay(); });
-  document.getElementById('tlNext').addEventListener('click', function () { if (tlDay < today0()) { tlDay = addDays(tlDay, 1); loadDay(); } });
 
-  // 開いたらまとめを読み、続けてグラフも先に読んでおく（［グラフ］を押したときに待たないように。2026-11-09）
-  refresh(function () { if (token) loadGraph(); });
-  // 2分ごとに読み直す（グラフを開いているときはグラフも。Kindle Fire で置きっぱなしにしても新しくなる）
-  setInterval(function () { if (busy) return; refresh(); if (curTab === 'gr') loadGraph(); }, 120000);
-  // PWA：サービスワーカー（画面の骨組みをキャッシュ）。版は sw.js の CACHE と build_pwa.py の VERSION でそろえる
+  // ===== みよか：2週間の集計・発育・離乳食（apiStats） =====
+  var sData = null, gwMode = 'w';
+  function loadStats() {
+    if (!token) return;
+    call('apiStats', {}, function (res) { sData = res; if (curTab === 'gr') drawStats(); }, function () {});
+  }
+  function sparkline(svg, vals, color) {
+    clearSvg(svg);
+    var W = svg.clientWidth || 140, H = 34, n = vals.length, max = Math.max.apply(null, vals.concat([1]));
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    var pts = vals.map(function (v, i) { return (4 + i * (W - 8) / Math.max(1, n - 1)) + ',' + (H - 4 - v / max * (H - 10)); });
+    svgEl('polyline', { points: pts.join(' '), fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round' }, svg);
+    var last = pts[pts.length - 1].split(',');
+    svgEl('circle', { cx: last[0], cy: last[1], r: 3, fill: color }, svg);
+  }
+  function bars(svg, days, getVals, colors, readId, fmt) {
+    clearSvg(svg);
+    var W = svg.clientWidth || 340, H = 120, L = 6, R = 6, B = 16, n = days.length, bw = (W - L - R) / n;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    var tot = days.map(function (d) { return getVals(d).reduce(function (a, b) { return a + b; }, 0); });
+    var max = Math.max.apply(null, tot.concat([1]));
+    svgEl('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: '#d9d5f0' }, svg);
+    days.forEach(function (d, i) {
+      var vs = getVals(d), y = H - B, x0 = L + i * bw + bw * 0.15, w = bw * 0.7;
+      vs.forEach(function (v, j) {
+        var h = v / max * (H - B - 8);
+        svgEl('rect', { x: x0, y: y - h, width: w, height: h, fill: d.today ? colors[j][1] : colors[j][0], rx: 2 }, svg);
+        y -= h;
+      });
+      if (i === 0 || i === n - 1 || i === Math.floor(n / 2)) { var t = svgEl('text', { x: x0 + w / 2, y: H - 3, 'font-size': 9, fill: '#777', 'text-anchor': 'middle' }, svg); t.textContent = d.d; }
+    });
+    var pick = function (clientX) {
+      var b = svg.getBoundingClientRect(), i = Math.max(0, Math.min(n - 1, Math.floor((clientX - b.left - L) / bw)));
+      setT(readId, fmt(days[i]));
+    };
+    svg.ontouchstart = svg.ontouchmove = function (e) { pick(e.touches[0].clientX); };
+    svg.onmousemove = function (e) { pick(e.clientX); };
+  }
+  function growthCurve(svg, mode, readId) {
+    clearSvg(svg);
+    var g = sData.growth, ref = g.ref, pts = mode === 'w' ? g.w : g.h, tbl = mode === 'w' ? ref.kg : ref.cm;
+    var W = svg.clientWidth || 340, H = 150, L = 28, R = 6, T = 6, B = 16;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    var aMax = Math.max(12, Math.ceil(g.ageNow + 1)), aMin = 0;
+    var idx = ref.age.map(function (a, i) { return i; }).filter(function (i) { return ref.age[i] <= aMax + 3; });
+    var vMin = tbl.lo[0], vMax = tbl.hi[idx[idx.length - 1]];
+    var X = function (a) { return L + (a - aMin) / (aMax - aMin) * (W - L - R); };
+    var Y = function (v) { return T + (vMax - v) / (vMax - vMin) * (H - T - B); };
+    var path = function (key) { return idx.map(function (i, j) { return (j ? 'L' : 'M') + X(ref.age[i]) + ',' + Y(tbl[key][i]); }).join(' '); };
+    svgEl('path', { d: path('hi') + ' ' + idx.slice().reverse().map(function (i) { return 'L' + X(ref.age[i]) + ',' + Y(tbl.lo[i]); }).join(' ') + ' Z', fill: '#efedfb' }, svg);
+    svgEl('path', { d: path('mid'), fill: 'none', stroke: '#c9c3f0', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' }, svg);
+    for (var m = 0; m <= aMax; m += 2) { var tx = svgEl('text', { x: X(m), y: H - 3, 'font-size': 9, fill: '#777', 'text-anchor': 'middle' }, svg); tx.textContent = m + 'か月'; }
+    [vMin, (vMin + vMax) / 2, vMax].forEach(function (v) { var ty = svgEl('text', { x: 0, y: Y(v) + 3, 'font-size': 9, fill: '#777' }, svg); ty.textContent = Math.round(v * 10) / 10; });
+    if (pts.length) {
+      svgEl('polyline', { points: pts.map(function (p) { return X(p.age) + ',' + Y(p.v); }).join(' '), fill: 'none', stroke: '#5b4fd6', 'stroke-width': 2 }, svg);
+      pts.forEach(function (p) { svgEl('circle', { cx: X(p.age), cy: Y(p.v), r: 3, fill: p.est ? '#fff' : '#5b4fd6', stroke: '#5b4fd6', 'stroke-width': 1.5 }, svg); });
+    }
+    var unit = mode === 'w' ? 'kg' : 'cm';
+    var pick = function (clientX) {
+      var b = svg.getBoundingClientRect(), px = clientX - b.left, best = null, bd = 1e9;
+      pts.forEach(function (p) { var d = Math.abs(X(p.age) - px); if (d < bd) { bd = d; best = p; } });
+      if (best) setT(readId, best.d + '　' + best.v + unit + '（' + best.age + 'か月）' + (best.est ? '・推定' : ''));
+    };
+    svg.ontouchstart = svg.ontouchmove = function (e) { pick(e.touches[0].clientX); };
+    svg.onmousemove = function (e) { pick(e.clientX); };
+  }
+  function chips(el, list) {
+    el.innerHTML = '';
+    list.forEach(function (f) { var s = document.createElement('span'); s.className = 'chip' + (f.star ? ' star' : f.n === 1 ? ' one' : ''); s.textContent = (f.star ? '★' : '') + f.food + (f.n === 1 ? '（1回）' : ''); el.appendChild(s); });
+  }
+  function drawStats() {
+    if (!sData) return;
+    var d = sData.daily, today = d[d.length - 1];
+    var P = '#5b4fd6', P2 = '#a9a0ef';
+    // 小さいカード
+    $('m-ml').innerHTML = today.milkMl + '<small>ml 今日</small>';
+    sparkline($('m-mlS'), d.map(function (x) { return x.milkMl; }), P);
+    setT('m-mlU', '今日 ミルク' + today.milkN + '回・母乳' + today.bf + '回');
+    $('m-sl').innerHTML = (Math.round((today.night + today.day) * 10) / 10) + '<small>時間 今日</small>';
+    sparkline($('m-slS'), d.map(function (x) { return x.night + x.day; }), P);
+    setT('m-slU', '今日 夜' + today.night + '・昼' + today.day);
+    var g = sData.growth;
+    $('m-gw').innerHTML = (g.lastW ? g.lastW.v + '<small>kg</small>' : '–') + '　' + (g.lastH ? g.lastH.v + '<small>cm</small>' : '');
+    sparkline($('m-gwS'), g.w.slice(-8).map(function (p) { return p.v; }), P);
+    setT('m-gwU', (g.bandW || '') + (g.lastW ? '・最終 ' + g.lastW.d : ''));
+    var f = sData.foods;
+    chips($('m-rec'), f.recommend);
+    var ml = $('m-meals'); ml.innerHTML = '';
+    f.meals.forEach(function (m) { var e = document.createElement('div'); e.className = 'meal'; e.textContent = m.at + ' ' + m.detail; ml.appendChild(e); });
+    setT('m-fp', 'クリア ' + f.cleared + '/' + f.total + '・★' + f.starDone + '/' + f.starTotal);
+    $('m-fb').style.width = Math.round(f.cleared / f.total * 100) + '%';
+    // 大きいグラフ
+    bars($('b-ml'), d, function (x) { return [x.milkMl]; }, [[P2, P]], 'b-mlR', function (x) { return x.d + '　ミルク ' + x.milkMl + 'ml（' + x.milkN + '回）・母乳 ' + x.bf + '回'; });
+    bars($('b-sl'), d, function (x) { return [x.night, x.day]; }, [[P2, P], ['#dcd8f6', '#c9c3f0']], 'b-slR', function (x) { return x.d + '　合計 ' + (Math.round((x.night + x.day) * 10) / 10) + '時間（夜 ' + x.night + '・昼 ' + x.day + '）'; });
+    growthCurve($('b-gw'), gwMode, 'b-gwR');
+    setT('b-gwT', gwMode === 'w' ? '発育曲線（体重）' : '発育曲線（身長）');
+    setT('b-gwSw', gwMode === 'w' ? '身長を見る' : '体重を見る');
+    setT('b-gwR', gwMode === 'w' ? (g.lastW ? '最新 ' + g.lastW.d + '　' + g.lastW.v + 'kg・' + g.bandW : '体重の記録がまだありません') : (g.lastH ? '最新 ' + g.lastH.d + '　' + g.lastH.v + 'cm・' + g.bandH : '身長の記録がまだありません'));
+    setT('b-fdT', f.remaining.length + '品');
+    var fd = $('b-fd'); fd.innerHTML = '';
+    [['★ 保育園に向けて', f.remaining.filter(function (r) { return r.star; })], ['そのほか', f.remaining.filter(function (r) { return !r.star; })]].forEach(function (grp) {
+      if (!grp[1].length) return;
+      var h = document.createElement('div'); h.className = 'fgrp'; h.textContent = grp[0]; fd.appendChild(h);
+      var box = document.createElement('div'); chips(box, grp[1]); fd.appendChild(box);
+    });
+  }
+  $('b-gwSw').addEventListener('click', function () { gwMode = gwMode === 'w' ? 'h' : 'w'; drawStats(); });
+  window.addEventListener('resize', function () { if (curTab === 'gr') { drawRhythm(); drawStats(); } });
+
+  // ===== しゃべろ：お知らせ（気づき・Siri の確認・ひとこと・離乳食クリア）とチャット（準備中） =====
+  var nData = null, checksData = [];
+  var seen = Number(store('ikuji_seen') || 0);
+  function unreadCount() {
+    var n = checksData.length;
+    if (nData) nData.notices.forEach(function (x) { if (x.t > seen) n++; });
+    return n;
+  }
+  function drawBadge() { var n = unreadCount(); $('aiBadge').textContent = n; show('aiBadge', n > 0 && curTab !== 'ai'); }
+  function loadNotices() {
+    if (!token) return;
+    call('apiNotices', {}, function (res) { nData = res; checksData = res.checks || []; if (curTab === 'ai') drawNotices(); drawBadge(); }, function () { if (!nData && $('ntLoad')) setT('ntLoad', '読み込めませんでした。'); });
+  }
+  function drawNotices() {
+    var box = $('ntBox'); box.innerHTML = '';
+    if (!nData) return;
+    // Siri の記録の確認（直す／そのまま）
+    checksData.forEach(function (c) {
+      var d = document.createElement('div'), when = c.at.replace(/^\d{4}\//, '').replace(/(\d+:\d+):\d+$/, '$1');
+      d.className = 'chk';
+      var t = document.createElement('div'); t.className = 'ct'; t.textContent = 'この記録、確認してや（' + c.kind + ' ' + when + '）';
+      var m = document.createElement('div');
+      var memo = c.field === 'メモ';
+      m.textContent = (memo ? 'メモ ' : '') + '「' + (c.from || '（空）').split('+').join(memo ? '+' : '・') + '」→ ' + (c.to === '（削除）' ? 'この記録を消す？' : '「' + c.to.split('+').join(memo ? '+' : '・') + '」に直す？');
+      var w = document.createElement('div'); w.className = 'why'; w.textContent = c.why || '';
+      var r = document.createElement('div'); r.className = 'row';
+      [['fix', c.to === '（削除）' ? '消す' : '直す'], ['keep', 'そのまま']].forEach(function (a) {
+        var b = document.createElement('button'); b.className = 'small' + (a[0] === 'fix' ? ' fix' : ''); b.textContent = a[1];
+        b.addEventListener('click', function () {
+          if (busy) return; setBusy(true);
+          call('apiCheck', { row: c.row, act: a[0], who: getWho() }, function (res) { setBusy(false); say(res.message, false); afterChange(); loadNotices(); }, function () { setBusy(false); });
+        });
+        r.appendChild(b);
+      });
+      d.appendChild(t); d.appendChild(m); d.appendChild(w); d.appendChild(r); box.appendChild(d);
+    });
+    // 今週の気づき
+    if (nData.kizuki && nData.kizuki.text) box.appendChild(notice('今週の気づき', nData.kizuki.meta, nData.kizuki.text, '', false));
+    // お知らせ（新しい順）
+    nData.notices.forEach(function (x) { box.appendChild(notice(x.kind || 'お知らせ', x.at, x.text, x.link, x.t > seen)); });
+    if (!box.children.length) { var e = document.createElement('div'); e.className = 'card'; e.textContent = 'まだお知らせはないで。朝のひとことや、離乳食のクリアがここに出ます。'; box.appendChild(e); }
+    seen = nData.now || Date.now(); store('ikuji_seen', seen); drawBadge();
+  }
+  function notice(kind, at, text, link, isNew) {
+    var d = document.createElement('div'); d.className = 'nt' + (isNew ? ' new' : '');
+    var k = document.createElement('div'); k.className = 'nk'; k.innerHTML = '<b></b><span></span>'; k.querySelector('b').textContent = kind; k.querySelector('span').textContent = at || ''; d.appendChild(k);
+    var x = document.createElement('div'); x.className = 'nx'; x.textContent = text; d.appendChild(x);
+    if (link) { var a = document.createElement('a'); a.href = link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '開く ↗'; d.appendChild(a); }
+    return d;
+  }
+
+  // ===== 開いたとき：まとめ → 裏で今日のながれ・みよか・しゃべろも先に取っておく =====
+  function prefetchAll() { if (!token) return; fetchDay(ymd(today0())); loadGraph(); loadStats(); loadNotices(); }
+  setT('topSub', greet());
+  refresh(function () { prefetchAll(); });
+  setInterval(function () { if (busy) return; refresh(); if (curTab === 'gr') { loadGraph(); loadStats(); } if (curTab === 'ai') loadNotices(); }, 120000);
   if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
 </script>
 </body></html>
