@@ -17,9 +17,10 @@
   html { height: 100%; }
   /* 上の余白：iPhone が画面の一番上を自動でぼかすので、タイトルをその外（時計の下から約40px）まで下げる。紫の帯と線はやめた（2026-11-11 夕） */
   body { font-family: -apple-system, "Hiragino Sans", sans-serif; margin: 0; background: #f4f3f9; color: var(--ink);
-         padding: calc(40px + env(safe-area-inset-top)) 10px calc(72px + env(safe-area-inset-bottom)); min-height: calc(100% + 1px); }
+         padding: calc(40px + env(safe-area-inset-top)) 10px calc(72px + env(safe-area-inset-bottom)); min-height: 100%; }
   /* min-height を 1px だけ画面より長くする：中身が画面に収まってスクロールしないと、iPhone で下のタブが約40px浮いた（つけとこ・しゃべろ。2026-11-11 夜）。
-     少しでもスクロールできれば浮かないことを実機で確かめた */
+     1px 長くするだけでは直らなかった（11-11c）。iPhone のホーム画面アプリでは、ページの高さが「画面−時計の帯」しかなく、下の固定がその分だけ浮く。
+     ページを画面いっぱいの高さ以上にすると直るので、下のスクリプト（fixStandalone）で body の min-height を画面の高さにする（11-11d） */
   [hidden] { display: none !important; }
   h2 { font-size: 12px; margin: 0 0 4px; color: var(--mute); font-weight: 600; }
   .card { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; }
@@ -435,7 +436,10 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-11c';
+  var VERSION = '2026-11-11d';
+  // iPhone のホーム画面アプリだけ：ページを画面の高さ（screen.height）以上にして、下のタブが浮くのを防ぐ。向きを変えたときも合わせ直す
+  function fixStandalone() { try { if (navigator.standalone === true) document.body.style.minHeight = (Math.abs(window.orientation) === 90 ? screen.width : screen.height) + 'px'; } catch (e) {} }
+  fixStandalone(); window.addEventListener('orientationchange', fixStandalone);
   var token = '', lastRec = null, sleepNote = '';
   function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
   // URL の ?k=合言葉 があれば端末に保存する（最初の1回だけ付けて開く。以後はホーム画面のアイコンから URL なしで開ける）
