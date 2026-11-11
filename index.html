@@ -3,22 +3,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>ねんねミルク</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#5b4fd6">
+<meta name="theme-color" content="#f4f3f9">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ねんねミルク">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 <style>
-  /* ===== ねんねミルク PWA v2（2026-11-10）。v1（pwa_release）から画面の作りを変えた：下タブ4つ・1画面のつけとこ・みよかの小さいグラフ・しゃべろ ===== */
+  /* ===== ねんねミルク PWA v4（2026-11-11 夕）。v2（11-10）で下タブ・1画面のつけとこ・みよか・しゃべろ。
+     v4：上の紫の帯をやめてタイトルを下げた／数字8けたで日付も打てる／みよかは ‹ › ボタンと縦の目盛り／しゃべろは上下を固定して吹き出しだけ動く ===== */
   * { box-sizing: border-box; }
   :root { --p: #5b4fd6; --p2: #7b70e4; --pl: #efedfa; --ink: #222; --mute: #777; --line: #ececf2; --ok: #1a7f37; --warn: #c2410c; }
   html { height: 100%; }
+  /* 上の余白：iPhone が画面の一番上を自動でぼかすので、タイトルをその外（時計の下から約40px）まで下げる。紫の帯と線はやめた（2026-11-11 夕） */
   body { font-family: -apple-system, "Hiragino Sans", sans-serif; margin: 0; background: #f4f3f9; color: var(--ink);
-         padding: calc(12px + env(safe-area-inset-top)) 10px calc(72px + env(safe-area-inset-bottom)); min-height: 100%; }
+         padding: calc(40px + env(safe-area-inset-top)) 10px calc(72px + env(safe-area-inset-bottom)); min-height: 100%; }
   [hidden] { display: none !important; }
-  /* 上の帯：時計の下を紫にして、細い明るい線を1本。中身はこの下から始まる（iOS のぼやけ対策。2026-11-10 夜） */
-  .band { position: fixed; top: 0; left: 0; right: 0; height: calc(env(safe-area-inset-top) + 4px); background: var(--p); border-bottom: 3px solid #a9a0ef; z-index: 16; }
   h2 { font-size: 12px; margin: 0 0 4px; color: var(--mute); font-weight: 600; }
   .card { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; }
   .hint { font-size: 12px; color: var(--mute); margin-top: 4px; }
@@ -35,7 +35,7 @@
   .top { display: flex; align-items: baseline; justify-content: space-between; padding: 2px 4px 6px; }
   .top b { font-size: 18px; }
   .top span { font-size: 12px; color: var(--mute); }
-  /* ===== 下のタブ（4つ）。横にスワイプしても切り替わる ===== */
+  /* ===== 下のタブ（5つ）。横にスワイプしても切り替わる ===== */
   .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; background: #fff; border-top: 1px solid var(--line);
          display: flex; padding: 4px 6px calc(6px + env(safe-area-inset-bottom)); }
   .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; background: transparent; color: #8b87a8; font-size: 11px; padding: 4px 0 2px; border-radius: 10px; position: relative; }
@@ -104,7 +104,7 @@
   .tlNav b { font-size: 16px; }
   .tlSum { font-size: 12px; color: #555; line-height: 1.6; }
   .tlSum b { font-size: 14px; color: var(--ink); }
-  .tlBox { max-height: calc(100vh - 215px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .tlBox { max-height: calc(100vh - 243px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; -webkit-overflow-scrolling: touch; }
   /* ===== みよか ===== */
   .rh { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; }
   .rh .hd { display: flex; align-items: center; gap: 8px; }
@@ -135,12 +135,12 @@
   .big svg { display: block; width: 100%; touch-action: pan-y; }
   .big .read { font-size: 12px; color: #333; min-height: 16px; }
   .fgrp { font-size: 11px; color: var(--mute); margin-top: 6px; }
-  .car { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-  .car::-webkit-scrollbar { display: none; }
-  .sl { flex: 0 0 100%; scroll-snap-align: start; min-width: 0; }
-  .sl svg, .big svg { touch-action: auto; }
+  /* 一番上のカード：3枚（リズム・ミルク量・睡眠時間）を ‹ › ボタンで切り替える。横スワイプはやめた（グラフをなぞると動いてしまうため。2026-11-11 夕） */
+  .sl { min-width: 0; }
   .hs { font-size: 11px; color: var(--mute); margin-left: auto; }
-  .dots { display: flex; justify-content: center; gap: 6px; margin-top: 6px; }
+  .carNav { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+  .carNav button { background: var(--pl); color: var(--p); font-size: 20px; line-height: 1; padding: 6px 24px; border-radius: 999px; }
+  .dots { display: flex; justify-content: center; gap: 6px; }
   .dots i { width: 6px; height: 6px; border-radius: 50%; background: #d5d2e6; }
   .dots i.on { background: var(--p); }
   .lg { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 10px; color: #555; margin-top: 4px; }
@@ -150,16 +150,21 @@
   .gi { font-size: 12px; background: #f6f5fb; border-radius: 8px; padding: 3px 8px; }
   .gi b { font-weight: 600; margin-right: 4px; }
   .chip.done { background: #eef7ef; color: #2a6b35; }
-  details.fall { margin-top: 8px; } details.fall summary, details.kz summary { font-size: 13px; color: var(--p); font-weight: 600; cursor: pointer; }
-  /* ===== しゃべろ ===== */
-  details.kz { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; }
-  details.kz summary span { font-size: 11px; color: var(--mute); font-weight: 400; margin-left: 8px; }
+  details.fall { margin-top: 8px; } details.fall summary { font-size: 13px; color: var(--p); font-weight: 600; cursor: pointer; }
+  /* ===== しゃべろ：上（記録の確認）と下（Claude に聞く）は固定。まん中の吹き出しだけが動く（2026-11-11 夕） ===== */
+  #viewAi { display: flex; flex-direction: column;
+            height: calc(100vh - 150px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+            height: calc(100dvh - 150px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  #viewAi > * { flex: none; }
+  #viewAi .chatBox { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; margin-bottom: 7px; }
+  #viewAi .chat { margin-bottom: 0; }
   .chatBox { margin-bottom: 7px; }
   .dsep { text-align: center; font-size: 11px; color: var(--mute); margin: 8px 0 4px; }
   .bm { font-size: 11px; color: var(--mute); margin: 6px 0 2px 4px; } .bm b { color: var(--p); margin-right: 6px; }
   .bb { max-width: 90%; display: inline-block; background: #fff; border-radius: 4px 16px 16px 16px; padding: 8px 12px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
   .bb.new { background: #efedfa; }
   .bb.me { background: var(--p); color: #fff; border-radius: 16px 4px 16px 16px; }
+  .bb.me.mt { background: #6b6880; }
   .rt { text-align: right; } .rt .bm { margin-right: 4px; }
   .bb button.cont { display: block; margin-top: 6px; font-size: 12px; padding: 5px 10px; border-radius: 999px; background: #f0eff6; color: var(--p); }
   .bb a { display: block; color: var(--p); font-size: 13px; }
@@ -183,9 +188,12 @@
   .chk .why { font-size: 12px; color: #8a6d3b; margin-top: 2px; }
   .chk .row button { flex: 1; }
   .chk button.fix { background: #d97706; color: #fff; }
-  .chat { background: #fff; border-radius: 14px; padding: 10px 12px; margin-bottom: 7px; }
-  .chat textarea { width: 100%; font: inherit; font-size: 15px; border: 1px solid #ddd; border-radius: 10px; padding: 8px; resize: none; height: 64px; }
-  .chat .cq { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chat { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; }
+  .chat .ch { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .chat .ch .seg button { font-size: 12px; padding: 5px 9px; }
+  .chat .ch span { font-size: 11px; color: var(--mute); min-width: 0; }
+  .chat textarea { width: 100%; font: inherit; font-size: 16px; border: 1px solid #ddd; border-radius: 10px; padding: 8px; resize: none; height: 52px; }
+  .chat .cq { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
   .chat .cq button { font-size: 12px; padding: 6px 10px; border-radius: 999px; }
   /* ===== 下からせり上がる画面（日時のホイール・記録の中身・お知らせ） ===== */
   .sheetBg { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0,0,0,.35); z-index: 20; }
@@ -207,12 +215,13 @@
   .typedRow { display: flex; align-items: center; gap: 8px; margin-top: 6px; background: var(--pl); border-radius: 12px; padding: 4px 6px 4px 12px; }
   .typedRow .lb { color: #888; font-size: 13px; flex: none; }
   .typedRow input { flex: 1; border: 0; background: #fff; font-size: 16px; padding: 7px 8px; min-width: 0; }
+  .typedHint { font-size: 12px; color: var(--mute); margin: 4px 4px 0; min-height: 17px; }
+  .typedHint.set { color: #b45309; font-weight: 600; }
   #msg { font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
-  #msgCard { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 18; margin: 0; box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+  #msgCard { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 18; margin: 0; box-shadow: 0 6px 24px rgba(0,0,0,.18); max-height: 60vh; overflow-y: auto; }
   #tokenCard { margin-bottom: 7px; }
 </style></head>
 <body>
-  <div class="band"></div>
   <div class="card" id="tokenCard" hidden>
     <h2>はじめに合言葉を入れてください</h2>
     <input type="password" id="tokenIn" class="wide" placeholder="合言葉">
@@ -305,18 +314,18 @@
           <div class="read" id="rhRead">点や帯に触れると、その記録がここに出ます</div>
           <svg id="rhSvg" height="204"></svg>
         </div>
-        <div class="sl">
+        <div class="sl" hidden>
           <div class="hd"><b>1日のミルク量</b><span class="hs">2週間・濃い色＝今日</span></div>
           <div class="read" id="b-mlR">棒に触れると、その日の量が出ます</div>
           <svg id="b-ml" height="230"></svg>
         </div>
-        <div class="sl">
+        <div class="sl" hidden>
           <div class="hd"><b>1日の睡眠時間</b><span class="hs">濃い＝夜（20〜6時）・薄い＝昼</span></div>
           <div class="read" id="b-slR">棒に触れると、その日の時間が出ます</div>
           <svg id="b-sl" height="230"></svg>
         </div>
       </div>
-      <div class="dots" id="dots"><i class="on"></i><i></i><i></i></div>
+      <div class="carNav"><button id="carPrev" aria-label="前のグラフ">‹</button><div class="dots" id="dots"><i class="on"></i><i></i><i></i></div><button id="carNext" aria-label="次のグラフ">›</button></div>
     </div>
     <div class="big">
       <div class="bt">発育曲線<span>帯＝3〜97パーセンタイル・点線＝真ん中</span></div>
@@ -334,15 +343,14 @@
     </div>
   </div>
 
-  <!-- ===== しゃべろ（お知らせとチャット） ===== -->
+  <!-- ===== しゃべろ（お知らせとチャット）。上：記録の確認（固定）／まん中：吹き出し（ここだけ動く）／下：Claude に聞く（固定） ===== -->
   <div id="viewAi" hidden>
     <div id="chkBox"></div>
-    <details class="kz" id="kzBox" hidden><summary>今週の気づき<span id="kzMeta"></span></summary><div class="nx" id="kzText" style="font-size:14px;line-height:1.6;white-space:pre-wrap;margin-top:4px"></div></details>
-    <div class="chatBox"><button class="more" id="ntMore" hidden>前のお知らせを見る</button><div id="ntBox"><div class="card" id="ntLoad">読み込み中…</div></div></div>
+    <div class="chatBox" id="chatScroll"><button class="more" id="ntMore" hidden>前のお知らせを見る</button><div id="ntBox"><div class="card" id="ntLoad">読み込み中…</div></div></div>
     <div class="chat">
-      <h2>Claude に聞く（返事は毎時53分ごろ・7〜22時）</h2>
-      <textarea id="chatIn" placeholder="例：先週より夜寝てる？　10月はミルク何mlくらい？　かぼちゃの離乳食の作り方"></textarea>
-      <div class="cq"><button data-q="先週とくらべて、夜の睡眠はどう？">夜の睡眠どう？</button><button data-q="この1週間のミルクと母乳の様子を教えて">ミルクの様子</button><button class="on" id="chatGo" style="margin-left:auto;padding:8px 18px">送る</button></div>
+      <div class="ch"><div class="seg" id="askMode"><button data-m="ask" class="on">Claude に聞く</button><button data-m="maint">メンテのメモ</button></div><span id="askHint">返事は毎時53分ごろ</span></div>
+      <textarea id="chatIn" placeholder="例：先週より夜寝てる？"></textarea>
+      <div class="cq"><button data-q="先週とくらべて、夜の睡眠はどう？">夜の睡眠</button><button data-q="この1週間のミルクと母乳の様子を教えて">ミルク</button><button id="kzBtn">今週の気づき</button><button class="on" id="chatGo" style="margin-left:auto;padding:7px 16px">送る</button></div>
     </div>
   </div>
 
@@ -361,7 +369,7 @@
     <button class="tab" id="tabTa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6"/><path d="M5 10v9h14v-9"/><path d="M9 19v-5h6v5"/></svg>たよろか</button>
   </nav>
 
-  <!-- 日時のホイール（日付・時・分）。下に時刻だけ打つ欄 -->
+  <!-- 日時のホイール（日付・時・分）。下に数字で打つ欄（4けた＝時刻、8けた＝月日時分） -->
   <div class="sheetBg" id="wheelBg" hidden>
     <div class="sheet">
       <div class="sheetHead"><button id="wCancel">キャンセル</button><b>いつの記録？</b><button id="wOk" class="ok">決定</button></div>
@@ -369,7 +377,8 @@
         <div class="wcol wd" id="wD"></div><div class="wcol" id="wH"></div><div class="wcol" id="wM"></div>
         <div class="wbar"></div>
       </div>
-      <div class="typedRow"><span class="lb">時刻を打つ</span><input id="typed" inputmode="numeric" placeholder="2130 や 930（打つとホイールが動く）"></div>
+      <div class="typedRow"><span class="lb">数字で打つ</span><input id="typed" inputmode="numeric" placeholder="2130 ／ 08191200（8月19日12:00）"></div>
+      <div class="typedHint" id="typedHint">4けた＝時刻。8けた＝月・日・時・分（30日より前の日もOK）</div>
     </div>
   </div>
 
@@ -422,7 +431,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-11a';
+  var VERSION = '2026-11-11b';
   var token = '', lastRec = null, sleepNote = '';
   function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
   // URL の ?k=合言葉 があれば端末に保存する（最初の1回だけ付けて開く。以後はホーム画面のアイコンから URL なしで開ける）
@@ -567,11 +576,15 @@
   var HOURS = [], MINS = [];
   for (var hh = 0; hh < 24; hh++) HOURS.push(String(hh));
   for (var mm = 0; mm < 60; mm++) MINS.push(pad(mm));
+  // 数字8けた（月日時分）で打った日。ホイールにない日（30日より前）も選べるように、ホイールとは別に持つ（2026-11-11 夕）
+  var typedDay = '';
+  var TYPED_HINT = '4けた＝時刻。8けた＝月・日・時・分（30日より前の日もOK）';
+  function typedHint(text, set) { var e = $('typedHint'); e.textContent = text; e.className = 'typedHint' + (set ? ' set' : ''); }
   dtBtn.addEventListener('click', function () {
     wDays = dayList();
     fillCol(wD, wDays.map(function (k) { return dayLabel(parseYmd(k)).replace('今日 ', '').replace('昨日 ', ''); }));
     fillCol(wH, HOURS); fillCol(wM, MINS);
-    typed.value = '';
+    typed.value = ''; typedDay = ''; typedHint(TYPED_HINT, false);
     show('wheelBg', true);
     var di = wDays.indexOf(selDay);
     wD.scrollTop = (di < 0 ? wDays.length - 1 : di) * ITEM; wH.scrollTop = selH * ITEM; wM.scrollTop = selM * ITEM;
@@ -580,18 +593,36 @@
   $('wheelBg').addEventListener('click', function (e) { if (e.target === this) show('wheelBg', false); });
   $('wOk').addEventListener('click', function () {
     if (typed.value.trim() && !applyTyped(false)) return;
-    selDay = wDays[colIndex(wD, wDays.length)]; selH = colIndex(wH, 24); selM = colIndex(wM, 60);
+    // 8けたで打った日がホイールにない（30日より前）ときは、打った日をそのまま使う
+    selDay = typedDay && wDays.indexOf(typedDay) < 0 ? typedDay : wDays[colIndex(wD, wDays.length)];
+    selH = colIndex(wH, 24); selM = colIndex(wM, 60);
     show('wheelBg', false); custom = true; drawDT();
   });
-  // 時刻を打つ：「2130」「930」「21:30」→ ホイールを動かす（決定で確定）
+  // 数字で打つ：「2130」「930」「21:30」→ 時刻だけ。「08191200」「8191200」→ 8月19日 12:00（先の日になるときは去年）。ホイールを動かす（決定で確定）
   function applyTyped(quiet) {
-    var s = typed.value.replace(/[０-９：]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xfee0); });
-    var m = s.match(/^\s*(\d{1,2}):?(\d{2})\s*$/);
-    if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) { if (!quiet) say('時刻は「2130」や「930」のように打ってください。'); return false; }
+    var s = typed.value.replace(/[０-９：]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xfee0); }).replace(/\s/g, '');
+    typedDay = '';
+    var m8 = s.match(/^(\d{1,2})(\d{2})(\d{2})(\d{2})$/);
+    if (m8) {
+      var mo = Number(m8[1]), dd = Number(m8[2]), h8 = Number(m8[3]), mi8 = Number(m8[4]);
+      var d = new Date(new Date().getFullYear(), mo - 1, dd);
+      var okDay = mo >= 1 && mo <= 12 && d.getMonth() === mo - 1 && d.getDate() === dd;
+      if (!okDay || h8 > 23 || mi8 > 59) { typedHint(TYPED_HINT, false); if (!quiet) say('8けたは「月・日・時・分」の順で打ってください（例：08191200 → 8月19日 12:00）。'); return false; }
+      if (d > today0()) d = new Date(d.getFullYear() - 1, mo - 1, dd); // 先の日は去年とみなす
+      typedDay = ymd(d);
+      var di = wDays.indexOf(typedDay);
+      if (di >= 0) wD.scrollTop = di * ITEM;
+      wH.scrollTop = h8 * ITEM; wM.scrollTop = mi8 * ITEM;
+      typedHint(d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日(' + WD[d.getDay()] + ') ' + h8 + ':' + pad(mi8) + ' にします（決定で確定）', true);
+      return true;
+    }
+    typedHint(TYPED_HINT, false);
+    var m = s.match(/^(\d{1,2}):?(\d{2})$/);
+    if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) { if (!quiet) say('時刻は「2130」や「930」、日付もいっしょなら「08191200」のように打ってください。'); return false; }
     wH.scrollTop = Number(m[1]) * ITEM; wM.scrollTop = Number(m[2]) * ITEM;
     return true;
   }
-  typed.addEventListener('input', function () { if (/^\s*\d{3,4}\s*$/.test(typed.value) || /^\s*\d{1,2}:\d{2}\s*$/.test(typed.value)) applyTyped(true); });
+  typed.addEventListener('input', function () { if (/^\s*\d{3,4}\s*$/.test(typed.value) || /^\s*\d{7,8}\s*$/.test(typed.value) || /^\s*\d{1,2}:\d{2}\s*$/.test(typed.value)) applyTyped(true); else { typedDay = ''; typedHint(TYPED_HINT, false); } });
   nowBtn.addEventListener('click', function () { useNow(); if (busy) return; refresh(); });
   useNow();
   function atValue() { return custom ? selDay + 'T' + pad(selH) + ':' + pad(selM) : null; }
@@ -673,19 +704,24 @@
     curTab = name;
     for (var k in TABS) { $(TABS[k][0]).classList.toggle('on', k === name); show(TABS[k][1], k === name); }
     setT('topName', TABS[name][2]);
-    setT('topSub', name === 'rec' ? greet() : name === 'tl' ? '日ごとの記録' : name === 'gr' ? '横にスワイプでグラフ切り替え' : name === 'ai' ? 'お知らせ' : '区や都のサービス');
+    setT('topSub', name === 'rec' ? greet() : name === 'tl' ? '日ごとの記録' : name === 'gr' ? '‹ › でグラフ切り替え' : name === 'ai' ? 'お知らせ' : '区や都のサービス');
     window.scrollTo(0, 0);
     if (name === 'tl') loadDay();
     if (name === 'gr') { if (gData) drawRhythm(); if (sData) drawStats(); loadGraph().then(loadStats); }
     if (name === 'ta') { drawLinks(); loadLinks(); }
-    if (name === 'ai') { if (nData) drawNotices(); loadNotices(); }
+    if (name === 'ai') {
+      // 開いたとき：まだ読んでいない一番古い吹き出しまで動かす（全部読んでいれば一番下）。読み込みが終わるまでの描き直しも同じ場所へ
+      seenOpen = seen; ntAll = false; aiJump = true;
+      if (nData) drawNotices();
+      loadNotices().then(function () { aiJump = false; });
+    }
   }
   for (var tk in TABS) (function (k) { $(TABS[k][0]).addEventListener('click', function () { setTab(k); }); })(tk);
   // 横スワイプ：グラフ・ホイール・入力欄の上から始めた動きは無視。はっきり横に動かしたときだけ
   var sx = null, sy = null, sOk = false;
   document.addEventListener('touchstart', function (e) {
     var t = e.touches[0], el = e.target;
-    sOk = !(el.closest && el.closest('.car, svg, .wheel, .sheetBg, input, textarea'));
+    sOk = !(el.closest && el.closest('.car, .carNav, svg, .wheel, .sheetBg, input, textarea'));
     sx = t.clientX; sy = t.clientY;
   }, { passive: true });
   document.addEventListener('touchend', function (e) {
@@ -826,11 +862,19 @@
   function segOn(id, b) { document.querySelectorAll('#' + id + ' button').forEach(function (x) { x.classList.toggle('on', x === b); }); }
   document.querySelectorAll('#rhSeg button').forEach(function (b) { b.addEventListener('click', function () { rhMode = b.getAttribute('data-r'); segOn('rhSeg', b); drawRhythm(); }); });
   document.querySelectorAll('#rhSpan button').forEach(function (b) { b.addEventListener('click', function () { rhSpan = b.getAttribute('data-s'); segOn('rhSpan', b); drawRhythm(); }); });
-  // 横にスワイプするカード（リズム → ミルク量 → 睡眠時間）。下の点々で今の位置
-  $('car').addEventListener('scroll', function () {
-    var i = Math.round(this.scrollLeft / Math.max(1, this.clientWidth));
-    document.querySelectorAll('#dots i').forEach(function (d, j) { d.classList.toggle('on', j === i); });
-  }, { passive: true });
+  // 一番上のカード（リズム → ミルク量 → 睡眠時間）：‹ › ボタンで1枚ずつ切り替える。端まで行ったら反対側へ。下の点々で今の位置
+  // 横スワイプはやめた（グラフをなぞると、カードが動いてしまったため。2026-11-11 夕）
+  var carIdx = 0;
+  function setCar(i) {
+    var slides = document.querySelectorAll('#car .sl');
+    carIdx = (i + slides.length) % slides.length;
+    slides.forEach(function (s, j) { s.hidden = j !== carIdx; });
+    document.querySelectorAll('#dots i').forEach(function (d, j) { d.classList.toggle('on', j === carIdx); });
+    // 隠れていたグラフは幅が測れていないので、見えるようになってから描き直す
+    if (carIdx === 0) drawRhythm(); else if (sData) drawStats();
+  }
+  $('carPrev').addEventListener('click', function () { setCar(carIdx - 1); });
+  $('carNext').addEventListener('click', function () { setCar(carIdx + 1); });
 
   // ===== みよか：2週間の集計・発育・離乳食（apiStats） =====
   var sData = null, gwMode = 'hw';
@@ -838,24 +882,38 @@
     if (!token) return Promise.resolve();
     return call('apiStats', {}, function (res) { sData = res; if (curTab === 'gr') drawStats(); }, function () {});
   }
-  function bars(svg, days, getVals, colors, readId, fmt, unit) {
+  // 縦の目盛りのきざみ：最大の4分の1くらいを、1・2・5のきりのよい数に
+  function niceStep(max) {
+    var raw = max / 4, p = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10)), f = raw / p;
+    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+  }
+  // 棒グラフ（2週間）。左に縦の目盛り（線と数字）。guide＝[下, 上, ラベル] があれば、目安の帯を後ろに描く（2026-11-11 夕）
+  function bars(svg, days, getVals, colors, readId, fmt, unit, guide) {
     clearSvg(svg);
-    var W = svg.clientWidth || 340, H = Number(svg.getAttribute('height')) || 200, L = 6, R = 6, B = 16, T = 14, n = days.length, bw = (W - L - R) / n;
+    var W = svg.clientWidth || 340, H = Number(svg.getAttribute('height')) || 200, L = 34, R = 6, B = 16, T = 12, n = days.length, bw = (W - L - R) / n;
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     var tot = days.map(function (d) { return getVals(d).reduce(function (a, b) { return a + b; }, 0); });
-    var max = Math.max.apply(null, tot.concat([1]));
-    svgEl('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: '#dcdce6' }, svg);
+    var max = Math.max.apply(null, tot.concat([1, guide ? guide[1] : 1]));
+    var step = niceStep(max), topV = Math.ceil(max / step - 1e-9) * step;
+    var Y = function (v) { return H - B - v / topV * (H - B - T); };
+    if (guide) svgEl('rect', { x: L, y: Y(guide[1]), width: W - L - R, height: Y(guide[0]) - Y(guide[1]), fill: '#e3f3e6' }, svg);
+    for (var k = 0; k * step <= topV + step / 2; k++) {
+      var gv = k * step, gy = Y(gv);
+      svgEl('line', { x1: L, x2: W - R, y1: gy, y2: gy, stroke: k === 0 ? '#dcdce6' : '#ececf2' }, svg);
+      var gt = svgEl('text', { x: L - 4, y: gy + 3, 'font-size': 9, fill: '#888', 'text-anchor': 'end' }, svg);
+      gt.textContent = (Math.round(gv * 10) / 10) + (gv >= topV - step / 2 ? unit : '');
+    }
     days.forEach(function (d, i) {
       var vs = getVals(d), y = H - B, x0 = L + i * bw + bw * 0.15, w = bw * 0.7;
       vs.forEach(function (v, j) {
-        var h = v / max * (H - B - T - 4);
+        var h = v / topV * (H - B - T);
         svgEl('rect', { x: x0, y: y - h, width: w, height: h, fill: d.today ? colors[j][1] : colors[j][0], rx: 2 }, svg);
         y -= h;
       });
       if (d.today || i === 0 || i === Math.floor(n / 2)) { var t = svgEl('text', { x: x0 + w / 2, y: H - 3, 'font-size': 9, fill: '#777', 'text-anchor': 'middle' }, svg); t.textContent = d.d; }
       if (d.today && tot[i]) { var v2 = svgEl('text', { x: x0 + w / 2, y: y - 3, 'font-size': 10, fill: '#222', 'text-anchor': 'middle', 'font-weight': 700 }, svg); v2.textContent = Math.round(tot[i] * 10) / 10; }
     });
-    var mx = svgEl('text', { x: L, y: 10, 'font-size': 9, fill: '#999' }, svg); mx.textContent = '最大 ' + Math.round(max * 10) / 10 + unit;
+    if (guide) { var gl = svgEl('text', { x: L + 4, y: Y(guide[1]) + 11, 'font-size': 9, fill: '#3f7d4c' }, svg); gl.textContent = guide[2]; }
     var pick = function (clientX) {
       var b = svg.getBoundingClientRect(), i = Math.max(0, Math.min(n - 1, Math.floor((clientX - b.left - L) / bw)));
       setT(readId, fmt(days[i]));
@@ -913,8 +971,10 @@
   function drawStats() {
     if (!sData) return;
     var d = sData.daily, g = sData.growth;
-    bars($('b-ml'), d, function (x) { return [x.milkMl]; }, [['#9ad9c9', '#12a886']], 'b-mlR', function (x) { return x.d + '　ミルク ' + x.milkMl + 'ml（' + x.milkN + '回）・母乳 ' + x.bf + '回'; }, 'ml');
-    bars($('b-sl'), d, function (x) { return [x.night, x.day]; }, [['#8fb0e8', '#2f6fd6'], ['#d3e3f8', '#a9c8f3']], 'b-slR', function (x) { return x.d + '　合計 ' + (Math.round((x.night + x.day) * 10) / 10) + '時間（夜 ' + x.night + '・昼 ' + x.day + '）'; }, '時間');
+    // 1日の睡眠時間の目安（もとのダッシュボードと同じ帯）：4〜12か月は12〜16時間、1〜2歳は11〜14時間。4か月より前は帯なし
+    var sg = g.ageNow >= 12 ? [11, 14, '月齢の目安 11〜14時間'] : g.ageNow >= 4 ? [12, 16, '月齢の目安 12〜16時間'] : null;
+    bars($('b-ml'), d, function (x) { return [x.milkMl]; }, [['#9ad9c9', '#12a886']], 'b-mlR', function (x) { return x.d + '　ミルク ' + x.milkMl + 'ml（' + x.milkN + '回）・母乳 ' + x.bf + '回'; }, 'ml', null);
+    bars($('b-sl'), d, function (x) { return [x.night, x.day]; }, [['#8fb0e8', '#2f6fd6'], ['#d3e3f8', '#a9c8f3']], 'b-slR', function (x) { return x.d + '　合計 ' + (Math.round((x.night + x.day) * 10) / 10) + '時間（夜 ' + x.night + '・昼 ' + x.day + '）'; }, '時間', sg);
     growthCurve($('b-gw'), gwMode, 'b-gwR');
     if (gwMode === 'hw') setT('b-gwR', '最新　' + (g.lastH ? '身長 ' + g.lastH.v + 'cm（' + g.lastH.d + '・' + g.bandH + '）' : '身長 –') + '　' + (g.lastW ? '体重 ' + g.lastW.v + 'kg（' + g.lastW.d + '・' + g.bandW + '）' : '体重 –'));
     else setT('b-gwR', g.lastHC ? '最新　頭囲 ' + g.lastHC.v + 'cm（' + g.lastHC.d + '・' + g.bandHC + '）' : '頭囲の記録はまだないで。「身長」ボタンの中から入れられます');
@@ -935,12 +995,18 @@
   document.querySelectorAll('#gwSeg button').forEach(function (b) { b.addEventListener('click', function () { gwMode = b.getAttribute('data-g'); segOn('gwSeg', b); drawStats(); }); });
   window.addEventListener('resize', function () { if (curTab === 'gr') { drawRhythm(); drawStats(); } });
 
-  // ===== しゃべろ：お知らせ（気づき・Siri の確認・ひとこと・離乳食クリア）とチャット（準備中） =====
+  // ===== しゃべろ：上に記録の確認（固定）、まん中に吹き出し（気づき・ひとこと・離乳食クリア・質問と返事・メンテのメモ）、下に Claude に聞く（固定） =====
   var nData = null, checksData = [];
   var seen = Number(store('ikuji_seen') || 0);
+  // seenOpen＝しゃべろを開いた時点の「ここまで読んだ」。開いている間は、これより新しい吹き出しを薄紫（未読）のままにする
+  var seenOpen = seen, aiJump = false;
   function unreadCount() {
     var n = checksData.length;
-    if (nData) { nData.notices.forEach(function (x) { if (x.t > seen) n++; }); (nData.qa || []).forEach(function (x) { if (x.done && x.at > seen) n++; }); }
+    if (nData) {
+      nData.notices.forEach(function (x) { if (x.t > seen) n++; });
+      (nData.qa || []).forEach(function (x) { if (x.done && x.at > seen) n++; });
+      if (nData.kizuki && nData.kizuki.t > seen) n++;
+    }
     return n;
   }
   function drawBadge() { var n = unreadCount(); $('aiBadge').textContent = n; show('aiBadge', n > 0 && curTab !== 'ai'); }
@@ -948,15 +1014,18 @@
     if (!token) return Promise.resolve();
     return call('apiNotices', {}, function (res) { nData = res; checksData = res.checks || []; if (curTab === 'ai') drawNotices(); drawBadge(); }, function () { if (!nData && $('ntLoad')) setT('ntLoad', '読み込めませんでした。'); });
   }
-  var ntAll = false, kzSession = '';
+  var ntAll = false;
+  // 返り値：今週の気づきの吹き出し（あれば）。「今週の気づき」ボタンがそこまで動かすのに使う
   function drawNotices() {
-    if (!nData) return;
-    // 上：記録の確認（直す／そのまま）。残しておく情報
+    if (!nData) return null;
+    var mark = curTab === 'ai' ? seenOpen : seen;
+    var sc0 = $('chatScroll').scrollTop; // 描き直しで読んでいる場所が飛ばないように、覚えておいて戻す
+    // 上（固定）：記録の確認（直す／そのまま）。1件ずつ見せて、残りは「あと◯件」
     var cb = $('chkBox'); cb.innerHTML = '';
-    checksData.forEach(function (c) {
+    checksData.slice(0, 1).forEach(function (c) {
       var d = document.createElement('div'), when = c.at.replace(/^\d{4}\//, '').replace(/(\d+:\d+):\d+$/, '$1');
       d.className = 'chk';
-      var t = document.createElement('div'); t.className = 'ct'; t.textContent = 'この記録、確認してや（' + c.kind + ' ' + when + '）';
+      var t = document.createElement('div'); t.className = 'ct'; t.textContent = 'この記録、確認してや（' + c.kind + ' ' + when + '）' + (checksData.length > 1 ? '　あと' + (checksData.length - 1) + '件' : '');
       var m = document.createElement('div');
       var memo = c.field === 'メモ';
       m.textContent = (memo ? 'メモ ' : '') + '「' + (c.from || '（空）').split('+').join(memo ? '+' : '・') + '」→ ' + (c.to === '（削除）' ? 'この記録を消す？' : '「' + c.to.split('+').join(memo ? '+' : '・') + '」に直す？');
@@ -972,32 +1041,30 @@
       });
       d.appendChild(t); d.appendChild(m); d.appendChild(w); d.appendChild(r); cb.appendChild(d);
     });
-    // 今週の気づき：折りたたみ。新しい気づきを初めて見るときだけ開いておく
-    var kz = nData.kizuki, kb = $('kzBox');
-    show('kzBox', !!(kz && kz.text));
-    if (kz && kz.text) {
-      var key = kz.meta + ':' + kz.text.length;
-      if (store('ikuji_kz') !== key || kzSession === key) { kb.open = true; kzSession = key; store('ikuji_kz', key); }
-      setT('kzMeta', kz.meta); setT('kzText', kz.text);
-    }
-    // 下：お知らせはチャットの吹き出し。古い順に上から、新しいものが下。今日と昨日だけ（前の分は「前のお知らせを見る」）
+    // まん中：チャットの吹き出し。古い順に上から、新しいものが下。今日と昨日だけ（前の分は「前のお知らせを見る」）
     var box = $('ntBox'); box.innerHTML = '';
     var cutoff = addDays(today0(), -1).getTime();
     var all = nData.notices.slice();
+    // 今週の気づきも吹き出しの1つ（書いた日時の場所に出る。日時が分からないときは流さず、ボタンからだけ見られる）
+    var kz = nData.kizuki;
+    if (kz && kz.text && kz.t) all.push({ t: kz.t, kind: '今週の気づき', text: kz.text, kz: true });
     (nData.qa || []).forEach(function (x) {
       all.push({ t: x.t, kind: x.who || '質問', text: x.q, me: true, wait: !x.done });
       if (x.done) all.push({ t: x.at || x.t + 1, kind: 'Claude', text: x.a, link: x.link, q: x.q, ans: true });
     });
+    (nData.maint || []).forEach(function (x) { all.push({ t: x.t, kind: (x.who ? x.who + '・' : '') + 'メンテのメモ', text: x.text, me: true, mt: true }); });
     all.sort(function (a, b) { return a.t - b.t; });
     var list = ntAll ? all : all.filter(function (x) { return x.t >= cutoff; });
     show('ntMore', !ntAll && all.length > list.length);
-    var lastDay = '';
+    var lastDay = '', firstNew = null, kzEl = null;
     list.forEach(function (x) {
-      var d = new Date(x.t), dk = dayLabel(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
-      if (dk !== lastDay) { var sp = document.createElement('div'); sp.className = 'dsep'; sp.textContent = dk; box.appendChild(sp); lastDay = dk; }
+      var d = new Date(x.t), dk = dayLabel(new Date(d.getFullYear(), d.getMonth(), d.getDate())), sp = null;
+      if (dk !== lastDay) { sp = document.createElement('div'); sp.className = 'dsep'; sp.textContent = dk; box.appendChild(sp); lastDay = dk; }
       var m = document.createElement('div'); m.className = 'bm'; m.innerHTML = '<b></b>'; m.querySelector('b').textContent = x.kind || 'お知らせ'; m.appendChild(document.createTextNode(hm(x.t))); box.appendChild(m);
       if (x.wait) m.appendChild(document.createTextNode('　返事待ち'));
-      var b = document.createElement('div'); b.className = 'bb' + (x.me ? ' me' : x.t > seen ? ' new' : ''); b.textContent = x.text;
+      if (!firstNew && !x.me && x.t > mark) firstNew = sp || m;
+      if (x.kz) kzEl = m;
+      var b = document.createElement('div'); b.className = 'bb' + (x.me ? ' me' + (x.mt ? ' mt' : '') : x.t > mark ? ' new' : ''); b.textContent = x.text;
       if (x.link) { var a = document.createElement('a'); a.href = x.link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '開く ↗'; b.appendChild(a); }
       if (x.ans) {
         // Claude のアプリ（または claude.ai）で、この質問と返事を持って新しいチャットを開く。長いと入りきらないことがあるので、コピーもしておく
@@ -1013,16 +1080,49 @@
     });
     if (!list.length) { var e = document.createElement('div'); e.className = 'dsep'; e.textContent = '今日と昨日のお知らせはないで。朝のひとこと、離乳食のクリア、質問の返事がここに出ます。'; box.appendChild(e); }
     seen = nData.now || Date.now(); store('ikuji_seen', seen); drawBadge();
+    // 開いた直後だけ：まだ読んでいない一番古い吹き出しを上に。全部読んでいれば一番下（最新）へ
+    var sc = $('chatScroll');
+    if (aiJump) sc.scrollTop = firstNew ? Math.max(0, firstNew.offsetTop - 4) : sc.scrollHeight;
+    else sc.scrollTop = sc0;
+    return kzEl;
   }
   $('ntMore').addEventListener('click', function () { ntAll = true; drawNotices(); });
-  // 質問を送る：「質問」シートに入り、スケジュール済みタスクが毎時53分ごろ（7〜22時）に答える
+  // 「今週の気づき」ボタン：もう読み込んである気づきを出すだけ（通信はしない）。吹き出しがあればそこまで動かす
+  $('kzBtn').addEventListener('click', function () {
+    var kz = nData && nData.kizuki;
+    if (!kz || !kz.text) { say('今週の気づきはまだないで。週に1回、記録を読んで届きます。'); return; }
+    if (!kz.t) { say('今週の気づき' + (kz.meta ? '（' + kz.meta + '）' : '') + '\n' + kz.text); return; }
+    ntAll = true;
+    var el = drawNotices();
+    if (el) $('chatScroll').scrollTop = Math.max(0, el.offsetTop - 4);
+  });
+  // 下のカードの切り替え：Claude に聞く（質問）／メンテのメモ（直したいこと。質問のタスクは答えない。「メンテ」シートに入る）
+  var askMode = 'ask';
+  document.querySelectorAll('#askMode button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      askMode = b.getAttribute('data-m'); segOn('askMode', b);
+      var mt = askMode === 'maint';
+      setT('askHint', mt ? '写真は Claude のチャットへ' : '返事は毎時53分ごろ');
+      $('chatIn').placeholder = mt ? '直したいこと・困ったこと' : '例：先週より夜寝てる？';
+      document.querySelectorAll('.cq [data-q]').forEach(function (q) { q.hidden = mt; });
+      setT('chatGo', mt ? '残す' : '送る');
+    });
+  });
+  // 送る：質問は「質問」シートに入り、スケジュール済みタスクが毎時53分ごろ（7〜22時）に答える。メンテのメモは「メンテ」シートに残るだけ
   function ask(text) {
     text = String(text || '').trim();
     if (!text || busy) return;
+    var req = { text: text, who: getWho() };
+    if (askMode === 'maint') req.maint = true;
     setBusy(true);
-    call('apiAsk', { text: text, who: getWho() }, function (res) {
+    call('apiAsk', req, function (res) {
       setBusy(false); $('chatIn').value = '';
-      if (nData) { nData.qa = res.qa || nData.qa; drawNotices(); }
+      if (nData) {
+        if (res.qa) nData.qa = res.qa;
+        if (res.maint) nData.maint = res.maint;
+        drawNotices();
+        var sc = $('chatScroll'); sc.scrollTop = sc.scrollHeight; // 自分が送ったものが見えるように、一番下へ
+      }
       say(res.message, false);
     }, function () { setBusy(false); });
   }
