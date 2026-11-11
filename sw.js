@@ -1,5 +1,5 @@
 // sw.js … 画面の骨組み（index.html・manifest・アイコン）をキャッシュする。Apps Script への通信はキャッシュしない
-const CACHE = 'ikuji-2026-11-11c';
+const CACHE = 'ikuji-2026-11-11d';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
