@@ -158,15 +158,15 @@
   details.fall { margin-top: 8px; } details.fall summary { font-size: 13px; color: var(--p); font-weight: 600; cursor: pointer; }
   /* ===== しゃべろ：上（記録の確認）と下（Claude に聞く）は固定。まん中の吹き出しだけが動く（2026-11-11 夕） ===== */
   #viewAi { display: flex; flex-direction: column;
-            height: calc(100vh - 150px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-            height: calc(100dvh - 150px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+            height: calc(100vh - 138px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+            height: calc(100dvh - 138px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
   #viewAi > * { flex: none; }
   #viewAi .chatBox { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; margin-bottom: 7px; }
   #viewAi .chat { margin-bottom: 0; }
   .chatBox { margin-bottom: 7px; }
   .dsep { text-align: center; font-size: 11px; color: var(--mute); margin: 8px 0 4px; }
   .bm { font-size: 11px; color: var(--mute); margin: 6px 0 2px 4px; } .bm b { color: var(--p); margin-right: 6px; }
-  .bb { max-width: 90%; display: inline-block; background: #fff; border-radius: 4px 16px 16px 16px; padding: 8px 12px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+  .bb { max-width: 90%; display: inline-block; background: #fff; border-radius: 4px 16px 16px 16px; padding: 8px 12px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; text-align: left; }
   .bb.new { background: #efedfa; }
   .bb.me { background: var(--p); color: #fff; border-radius: 16px 4px 16px 16px; }
   .bb.me.mt { background: #6b6880; }
@@ -436,7 +436,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-11d';
+  var VERSION = '2026-11-11e';
   // iPhone のホーム画面アプリだけ：ページを画面の高さ（screen.height）以上にして、下のタブが浮くのを防ぐ。向きを変えたときも合わせ直す
   function fixStandalone() { try { if (navigator.standalone === true) document.body.style.minHeight = (Math.abs(window.orientation) === 90 ? screen.width : screen.height) + 'px'; } catch (e) {} }
   fixStandalone(); window.addEventListener('orientationchange', fixStandalone);
