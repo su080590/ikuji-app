@@ -5,7 +5,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#5b4fd6">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ねんねミルク">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
@@ -15,8 +15,10 @@
   :root { --p: #5b4fd6; --p2: #7b70e4; --pl: #efedfa; --ink: #222; --mute: #777; --line: #ececf2; --ok: #1a7f37; --warn: #c2410c; }
   html { height: 100%; }
   body { font-family: -apple-system, "Hiragino Sans", sans-serif; margin: 0; background: #f4f3f9; color: var(--ink);
-         padding: calc(6px + env(safe-area-inset-top)) 10px calc(72px + env(safe-area-inset-bottom)); min-height: 100%; }
+         padding: calc(12px + env(safe-area-inset-top)) 10px calc(72px + env(safe-area-inset-bottom)); min-height: 100%; }
   [hidden] { display: none !important; }
+  /* 上の帯：時計の下を紫にして、細い明るい線を1本。中身はこの下から始まる（iOS のぼやけ対策。2026-11-10 夜） */
+  .band { position: fixed; top: 0; left: 0; right: 0; height: calc(env(safe-area-inset-top) + 4px); background: var(--p); border-bottom: 3px solid #a9a0ef; z-index: 16; }
   h2 { font-size: 12px; margin: 0 0 4px; color: var(--mute); font-weight: 600; }
   .card { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; }
   .hint { font-size: 12px; color: var(--mute); margin-top: 4px; }
@@ -39,7 +41,7 @@
   .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; background: transparent; color: #8b87a8; font-size: 11px; padding: 4px 0 2px; border-radius: 10px; position: relative; }
   .tab svg { width: 24px; height: 24px; }
   .tab.on { color: var(--p); font-weight: 700; background: transparent; }
-  .tab .badge { position: absolute; top: 2px; right: calc(50% - 20px); min-width: 16px; height: 16px; border-radius: 8px; background: #e4572e; color: #fff; font-size: 10px; line-height: 16px; padding: 0 4px; font-weight: 700; }
+  .tab .badge { position: absolute; top: 0; right: calc(50% - 22px); min-width: 16px; height: 16px; border-radius: 8px; background: #e4572e; color: #fff; font-size: 10px; line-height: 16px; padding: 0 4px; font-weight: 700; }
   /* ===== つけとこ ===== */
   .rc { background: #fff; border-radius: 14px; padding: 7px 12px; margin-bottom: 7px; }
   .rl { display: flex; align-items: baseline; gap: 7px; flex-wrap: nowrap; min-width: 0; }
@@ -48,13 +50,15 @@
   .rl .ago { color: var(--p2); font-size: 13px; font-weight: 600; white-space: nowrap; }
   .rl .chev { margin-left: auto; color: #aaa; font-size: 12px; flex: none; transition: transform .15s; }
   .rc.open .chev { transform: rotate(180deg); }
-  .ri { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 3px 10px; font-size: 14px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+  .ri { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; align-items: center; gap: 3px 10px; font-size: 14px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
   .ri .t { color: var(--mute); font-variant-numeric: tabular-nums; }
   .ri .x { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ri .w { color: #999; font-size: 12px; }
   .ri button.del { font-size: 12px; padding: 4px 8px; border-radius: 8px; background: #f3f2f8; color: #888; }
   .ri button.del.sure { background: #d9534f; color: #fff; }
-  .tlMemo { grid-column: 2 / 5; font-size: 12px; color: #8a6d3b; margin-top: -2px; }
+  .ri .ic { font-size: 15px; width: 20px; text-align: center; }
+  .ri .x.wrap { white-space: normal; }
+  .tlMemo { grid-column: 3 / 6; font-size: 12px; color: #8a6d3b; margin-top: -2px; }
   .sum { background: #fff; border-radius: 14px; margin-bottom: 7px; overflow: hidden; }
   .sr { padding: 6px 12px; border-bottom: 1px solid var(--line); min-width: 0; }
   .two { display: grid; grid-template-columns: 1fr 1fr; }
@@ -131,7 +135,43 @@
   .big svg { display: block; width: 100%; touch-action: pan-y; }
   .big .read { font-size: 12px; color: #333; min-height: 16px; }
   .fgrp { font-size: 11px; color: var(--mute); margin-top: 6px; }
+  .car { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .car::-webkit-scrollbar { display: none; }
+  .sl { flex: 0 0 100%; scroll-snap-align: start; min-width: 0; }
+  .sl svg, .big svg { touch-action: auto; }
+  .hs { font-size: 11px; color: var(--mute); margin-left: auto; }
+  .dots { display: flex; justify-content: center; gap: 6px; margin-top: 6px; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: #d5d2e6; }
+  .dots i.on { background: var(--p); }
+  .lg { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 10px; color: #555; margin-top: 4px; }
+  .lg i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 2px; vertical-align: -1px; }
+  .lg i.b { border-radius: 2px; width: 12px; } .lg i.q { border-radius: 0; } .lg i.t { width: 0; height: 0; border-radius: 0; background: transparent !important; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 8px solid #1a8f2e; }
+  .gd { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 2px; }
+  .gi { font-size: 12px; background: #f6f5fb; border-radius: 8px; padding: 3px 8px; }
+  .gi b { font-weight: 600; margin-right: 4px; }
+  .chip.done { background: #eef7ef; color: #2a6b35; }
+  details.fall { margin-top: 8px; } details.fall summary, details.kz summary { font-size: 13px; color: var(--p); font-weight: 600; cursor: pointer; }
   /* ===== しゃべろ ===== */
+  details.kz { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; }
+  details.kz summary span { font-size: 11px; color: var(--mute); font-weight: 400; margin-left: 8px; }
+  .chatBox { margin-bottom: 7px; }
+  .dsep { text-align: center; font-size: 11px; color: var(--mute); margin: 8px 0 4px; }
+  .bm { font-size: 11px; color: var(--mute); margin: 6px 0 2px 4px; } .bm b { color: var(--p); margin-right: 6px; }
+  .bb { max-width: 90%; display: inline-block; background: #fff; border-radius: 4px 16px 16px 16px; padding: 8px 12px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+  .bb.new { background: #efedfa; }
+  .bb.me { background: var(--p); color: #fff; border-radius: 16px 4px 16px 16px; }
+  .rt { text-align: right; } .rt .bm { margin-right: 4px; }
+  .bb button.cont { display: block; margin-top: 6px; font-size: 12px; padding: 5px 10px; border-radius: 999px; background: #f0eff6; color: var(--p); }
+  .bb a { display: block; color: var(--p); font-size: 13px; }
+  button.more { display: block; margin: 0 auto 4px; font-size: 12px; padding: 5px 12px; border-radius: 999px; background: #e9e7f5; color: #555; }
+  /* ===== たよろか ===== */
+  a.lk { display: flex; align-items: center; gap: 8px; padding: 9px 2px; border-top: 1px solid var(--line); text-decoration: none; color: var(--ink); }
+  a.lk:first-of-type { border-top: 0; }
+  a.lk div { flex: 1; min-width: 0; } a.lk b { display: block; font-size: 14px; font-weight: 600; }
+  a.lk span { display: block; font-size: 11px; color: var(--mute); }
+  a.lk i { font-style: normal; color: var(--p); }
+  textarea.memo { width: 100%; font: inherit; font-size: 16px; border: 1px solid #ccc; border-radius: 10px; padding: 8px; height: 90px; resize: none; }
+  .tlSum div + div { margin-top: 2px; }
   .nt { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; border-left: 4px solid var(--p2); }
   .nt .nk { font-size: 11px; color: var(--mute); display: flex; gap: 8px; }
   .nt .nk b { color: var(--p); }
@@ -172,6 +212,7 @@
   #tokenCard { margin-bottom: 7px; }
 </style></head>
 <body>
+  <div class="band"></div>
   <div class="card" id="tokenCard" hidden>
     <h2>はじめに合言葉を入れてください</h2>
     <input type="password" id="tokenIn" class="wide" placeholder="合言葉">
@@ -233,6 +274,7 @@
       <button data-k="両方">両方</button>
       <button data-k="体重">体重</button>
       <button data-k="身長">身長</button>
+      <button data-k="メモ">メモ</button>
     </div>
   </div>
 
@@ -255,30 +297,59 @@
   <!-- ===== みよか（グラフ） ===== -->
   <div id="viewGr" hidden>
     <div class="rh">
-      <div class="hd"><b>1日のリズム</b><div class="seg2" id="rhSeg"><button data-r="all" class="on">全体</button><button data-r="day">昼</button><button data-r="night">夜</button></div></div>
-      <div class="read" id="rhRead">点や帯をなぞると、その記録がここに出ます</div>
-      <svg id="rhSvg" height="160"></svg>
+      <div class="car" id="car">
+        <div class="sl">
+          <div class="hd"><b>1日のリズム</b><div class="seg2" id="rhSpan"><button data-s="week" class="on">1週間</button><button data-s="two">今日・昨日</button></div></div>
+          <div class="hd" style="margin-top:4px"><div class="seg2" id="rhSeg" style="margin-left:0"><button data-r="all" class="on">全体</button><button data-r="day">昼</button><button data-r="night">夜</button></div></div>
+          <div class="lg"><span><i class="b" style="background:#2f6fd6"></i>夜のねんね</span><span><i class="b" style="background:#a9c8f3"></i>昼寝</span><span><i style="background:#12a886"></i>ミルク</span><span><i style="background:#f0a020"></i>母乳</span><span><i style="background:#e879a6"></i>離乳食</span><span><i class="t"></i>おしっこ</span><span><i class="q" style="background:#6b46c1"></i>うんち</span></div>
+          <div class="read" id="rhRead">点や帯に触れると、その記録がここに出ます</div>
+          <svg id="rhSvg" height="204"></svg>
+        </div>
+        <div class="sl">
+          <div class="hd"><b>1日のミルク量</b><span class="hs">2週間・濃い色＝今日</span></div>
+          <div class="read" id="b-mlR">棒に触れると、その日の量が出ます</div>
+          <svg id="b-ml" height="230"></svg>
+        </div>
+        <div class="sl">
+          <div class="hd"><b>1日の睡眠時間</b><span class="hs">濃い＝夜（20〜6時）・薄い＝昼</span></div>
+          <div class="read" id="b-slR">棒に触れると、その日の時間が出ます</div>
+          <svg id="b-sl" height="230"></svg>
+        </div>
+      </div>
+      <div class="dots" id="dots"><i class="on"></i><i></i><i></i></div>
     </div>
-    <div class="mini">
-      <div class="mc"><div class="mt">1日のミルク量</div><div class="mv" id="m-ml">–<small>ml 今日</small></div><svg id="m-mlS"></svg><div class="ms" id="m-mlU">2週間</div></div>
-      <div class="mc"><div class="mt">1日の睡眠時間</div><div class="mv" id="m-sl">–<small>時間 今日</small></div><svg id="m-slS"></svg><div class="ms" id="m-slU">2週間</div></div>
-      <div class="mc"><div class="mt">発育</div><div class="mv" id="m-gw">–</div><svg id="m-gwS"></svg><div class="ms" id="m-gwU"></div></div>
-      <div class="mc"><div class="mt">離乳食</div><div class="ms">次のおすすめ</div><div id="m-rec"></div><div class="ms" style="margin-top:4px">直近</div><div id="m-meals"></div><div class="bar2"><span class="ms" id="m-fp">クリア –</span><div class="tr"><i id="m-fb" style="width:0"></i></div></div></div>
+    <div class="big">
+      <div class="bt">発育曲線<span>帯＝3〜97パーセンタイル・点線＝真ん中</span></div>
+      <div class="rh" style="padding:0;margin:4px 0 0"><div class="hd"><div class="seg2" id="gwSeg" style="margin-left:0"><button data-g="hw" class="on">身長・体重</button><button data-g="hc">頭囲</button></div></div></div>
+      <div class="read" id="b-gwR">触れると、その日の値が出ます</div>
+      <svg id="b-gw" height="200"></svg>
     </div>
-    <div class="big"><div class="bt">1日のミルク量<span>2週間・濃い紫＝今日</span></div><div class="read" id="b-mlR"></div><svg id="b-ml" height="120"></svg></div>
-    <div class="big"><div class="bt">1日の睡眠時間<span>濃い＝夜（20〜6時）・薄い＝昼</span></div><div class="read" id="b-slR"></div><svg id="b-sl" height="120"></svg></div>
-    <div class="big"><div class="bt"><span id="b-gwT" style="font-size:13px;color:var(--ink);font-weight:700">発育曲線（体重）</span><span>帯＝3〜97パーセンタイル・点線＝中央値</span><button class="sw" id="b-gwSw">身長を見る</button></div><div class="read" id="b-gwR">なぞると、その日の値が出ます</div><svg id="b-gw" height="150"></svg></div>
-    <div class="big"><div class="bt">離乳食　まだの食材<span id="b-fdT"></span></div><div id="b-fd"></div><div class="hint">2回食べたら消えます。★は保育園が家で試してほしい食材。枠だけのものは1回食べました</div></div>
+    <div class="big" id="fdCard">
+      <div class="bt">離乳食<span id="fd-stage"></span></div>
+      <div class="fgrp" id="fd-goalL">次の目標</div><div id="fd-goals"></div>
+      <div class="fgrp">あと1回でクリア</div><div id="fd-one"></div>
+      <div class="fgrp" id="fd-guideL">1回の量の目安</div><div class="gd" id="fd-guide"></div><div class="hint" id="fd-note"></div>
+      <div class="fgrp">最近の献立</div><div id="m-meals"></div>
+      <details class="fall"><summary id="fd-allL">全部の食材</summary><div id="fd-all"></div><div class="hint">★は保育園が家で試してほしい食材。2回食べたらクリア（緑）。枠だけは1回</div></details>
+    </div>
   </div>
 
   <!-- ===== しゃべろ（お知らせとチャット） ===== -->
   <div id="viewAi" hidden>
-    <div id="ntBox"><div class="card" id="ntLoad">読み込み中…</div></div>
+    <div id="chkBox"></div>
+    <details class="kz" id="kzBox" hidden><summary>今週の気づき<span id="kzMeta"></span></summary><div class="nx" id="kzText" style="font-size:14px;line-height:1.6;white-space:pre-wrap;margin-top:4px"></div></details>
+    <div class="chatBox"><button class="more" id="ntMore" hidden>前のお知らせを見る</button><div id="ntBox"><div class="card" id="ntLoad">読み込み中…</div></div></div>
     <div class="chat">
-      <h2>Claude に聞く（準備中）</h2>
-      <textarea id="chatIn" placeholder="API を申し込んだら、ここで記録のことを聞けるようになります" disabled></textarea>
-      <div class="cq"><button disabled>先週より夜寝てる？</button><button disabled>にんじん食べたっけ？</button><button disabled>かぼちゃの作り方</button></div>
+      <h2>Claude に聞く（返事は毎時53分ごろ・7〜22時）</h2>
+      <textarea id="chatIn" placeholder="例：先週より夜寝てる？　10月はミルク何mlくらい？　かぼちゃの離乳食の作り方"></textarea>
+      <div class="cq"><button data-q="先週とくらべて、夜の睡眠はどう？">夜の睡眠どう？</button><button data-q="この1週間のミルクと母乳の様子を教えて">ミルクの様子</button><button class="on" id="chatGo" style="margin-left:auto;padding:8px 18px">送る</button></div>
     </div>
+  </div>
+
+  <!-- ===== たよろか（区や都のリンク集） ===== -->
+  <div id="viewTa" hidden>
+    <div id="lkBox"><div class="card">読み込み中…</div></div>
+    <div class="hint" style="padding:0 6px 8px">リンクは、スプレッドシート「育児記録」の「リンク」シートで足したり消したりできます（名前・URL・分類・並び順・メモ）</div>
   </div>
 
   <!-- 下のタブ -->
@@ -287,6 +358,7 @@
     <button class="tab" id="tabTl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>ながれ</button>
     <button class="tab" id="tabGr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 4 3 5-7"/></svg>みよか</button>
     <button class="tab" id="tabAi"><span class="badge" id="aiBadge" hidden>0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12Z"/></svg>しゃべろ</button>
+    <button class="tab" id="tabTa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6"/><path d="M5 10v9h14v-9"/><path d="M9 19v-5h6v5"/></svg>たよろか</button>
   </nav>
 
   <!-- 日時のホイール（日付・時・分）。下に時刻だけ打つ欄 -->
@@ -331,6 +403,12 @@
       <div id="p-身長" class="panel" hidden>
         <div class="row"><input type="number" id="cmIn" step="0.1" inputmode="decimal"> cm <button class="small" id="cmGo">記録</button></div>
         <div class="hint">例：68.5（小数点1けたまで）</div>
+        <div class="row" style="margin-top:12px">頭囲 <input type="number" id="hcIn" step="0.1" inputmode="decimal"> cm <button class="small" id="hcGo">記録</button></div>
+        <div class="hint">頭囲を測ったときだけ。身長と別々に記録できます</div>
+      </div>
+      <div id="p-メモ" class="panel" hidden>
+        <textarea class="memo" id="memoIn" placeholder="なんでもメモ（様子、気づいたこと、測ったものなど）"></textarea>
+        <button class="go" id="memoGo">つけとく</button>
       </div>
     </div>
   </div>
@@ -344,7 +422,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-10b';
+  var VERSION = '2026-11-11a';
   var token = '', lastRec = null, sleepNote = '';
   function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
   // URL の ?k=合言葉 があれば端末に保存する（最初の1回だけ付けて開く。以後はホーム画面のアイコンから URL なしで開ける）
@@ -389,10 +467,12 @@
   }
   $('s-sleep').addEventListener('click', function () { if (sleepNote) say(sleepNote); });
 
-  // 1行分（時刻・中身・入れた人・［消す］）。［消す］は2回押すと消える
+  var ICON = { 'ミルク': '🍼', '母乳': '🤱', '離乳食': '🥣', '寝た': '😴', '起きた': '☀️', 'おしっこ': '💧', 'うんち': '💩', 'お風呂': '🛁', '体重': '⚖️', '身長': '📏', '頭囲': '📐', 'メモ': '📝' };
+  // 1行分（時刻・アイコン・中身・入れた人・［消す］）。［消す］は2回押すと消える
   function addRow(list, r, timeText, after) {
     var t = document.createElement('span'); t.className = 't'; t.textContent = timeText; list.appendChild(t);
-    var x = document.createElement('span'); x.className = 'x'; x.textContent = r.what; list.appendChild(x);
+    var ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = ICON[r.kind] || '・'; list.appendChild(ic);
+    var x = document.createElement('span'); x.className = 'x' + (r.kind === 'メモ' ? ' wrap' : ''); x.textContent = r.what; list.appendChild(x);
     var w = document.createElement('span'); w.className = 'w'; w.textContent = r.who; list.appendChild(w);
     var b = document.createElement('button'); b.className = 'del'; b.textContent = '消す';
     var timer = null;
@@ -426,10 +506,16 @@
   drawRecOpen();
 
   // ===== Apps Script を呼ぶ（doPost に { api, ...引数 }。Content-Type を付けないので事前確認が起きない） =====
+  var READS = { apiLatest: 1, apiDay: 1, apiGraph: 1, apiStats: 1, apiNotices: 1, apiLinks: 1 };
+  function post(req) { return fetch(API_URL, { method: 'POST', body: JSON.stringify(req), redirect: 'follow' }).then(function (r) { return r.json(); }); }
+  // 読むだけの呼び出しは、通信が切れたら少し待って1回だけやり直す。返り値は「終わったら進む」ための Promise（失敗しても止まらない）
   function call(fn, req, done, fail) {
     req.token = token; req.api = fn;
-    fetch(API_URL, { method: 'POST', body: JSON.stringify(req), redirect: 'follow' })
-      .then(function (r) { return r.json(); })
+    return post(req)
+      .catch(function (err) {
+        if (!READS[fn]) throw err;
+        return new Promise(function (ok) { setTimeout(ok, 800); }).then(function () { return post(req); });
+      })
       .then(function (res) {
         if (!res.ok) { if (fail) fail(); say(res.message); if (fn === 'apiLatest') setT('s-feed', res.message); if (String(res.message).indexOf('合言葉') >= 0) show('tokenCard', true); return; }
         if (res.latest) { try { drawLatest(res.latest); } catch (e) { setT('s-feed', '表示エラー：' + e.message); } }
@@ -438,12 +524,17 @@
       .catch(function (err) {
         if (fail) fail();
         if (fn === 'apiLatest') { setT('s-feed', '読み込めませんでした：' + err.message + '（電波を確認してください）'); return; }
+        if (READS[fn]) return; // 裏の読み直しは黙って終わる（次の読み直しで新しくなる）
+        if (fn === 'apiDelete' || fn === 'apiCheck') {
+          say('通信が途中で切れたみたいです。できたかどうか、読み直して確かめます。残っていたら、もう一度押してください。');
+          afterChange(); refresh(); return;
+        }
         say('うまく送れませんでした：' + err.message + '。電波を確認して、上のまとめで記録されたか見てから、必要ならもう一度押してください。');
       });
   }
   function refresh(done) {
     if (!token) { show('tokenCard', true); if (done) done(); return; }
-    call('apiLatest', {}, done, done);
+    return call('apiLatest', {}, done, done);
   }
   $('tokenSave').addEventListener('click', function () {
     token = $('tokenIn').value.trim(); store('ikuji_token', token); show('tokenCard', false);
@@ -528,7 +619,7 @@
     }, function () { setBusy(false); });
   }
   // 記録の中身は下からせり上がる画面に
-  var PTITLE = { 'ミルク': 'ミルクの量', '母乳': '母乳', '離乳食': '離乳食', 'うんち': 'うんちの様子', '体重': '体重', '身長': '身長' };
+  var PTITLE = { 'ミルク': 'ミルクの量', '母乳': '母乳', '離乳食': '離乳食', 'うんち': 'うんちの様子', '体重': '体重', '身長': '身長・頭囲', 'メモ': 'メモ' };
   function closePanels() {
     show('panelBg', false);
     document.querySelectorAll('.panel').forEach(function (p) { p.hidden = true; });
@@ -561,21 +652,32 @@
     if (v >= 30 && v <= 130) { $('cmIn').value = ''; record([{ kind: '身長', amount: Math.round(v * 10) / 10, unit: 'cm' }]); }
     else if (v > 0) say('身長はcmで入れてください（例：68.5）。');
   });
+  $('hcGo').addEventListener('click', function () {
+    var v = Number($('hcIn').value);
+    if (v >= 25 && v <= 60) { $('hcIn').value = ''; record([{ kind: '頭囲', amount: Math.round(v * 10) / 10, unit: 'cm' }]); }
+    else if (v > 0) say('頭囲はcmで入れてください（例：43.5）。');
+  });
+  $('memoGo').addEventListener('click', function () {
+    var t = $('memoIn').value.trim();
+    if (!t) return;
+    $('memoIn').value = ''; record([{ kind: 'メモ', memo: t }]);
+  });
   $('closeMsg').addEventListener('click', function () { show('msgCard', false); });
   $('undo').addEventListener('click', function () { if (!lastRec) return; call('apiUndo', lastRec, function (res) { lastRec = null; afterChange(); say(res.message, false); }); });
 
   // ===== 画面の切り替え（下のタブ・横スワイプ） =====
-  var TABS = { rec: ['tabRec', 'viewRec', 'つけとこ'], tl: ['tabTl', 'viewTl', 'ながれ'], gr: ['tabGr', 'viewGr', 'みよか'], ai: ['tabAi', 'viewAi', 'しゃべろ'] };
-  var ORDER = ['rec', 'tl', 'gr', 'ai'];
+  var TABS = { rec: ['tabRec', 'viewRec', 'つけとこ'], tl: ['tabTl', 'viewTl', 'ながれ'], gr: ['tabGr', 'viewGr', 'みよか'], ai: ['tabAi', 'viewAi', 'しゃべろ'], ta: ['tabTa', 'viewTa', 'たよろか'] };
+  var ORDER = ['rec', 'tl', 'gr', 'ai', 'ta'];
   var curTab = 'rec';
   function setTab(name) {
     curTab = name;
     for (var k in TABS) { $(TABS[k][0]).classList.toggle('on', k === name); show(TABS[k][1], k === name); }
     setT('topName', TABS[name][2]);
-    setT('topSub', name === 'rec' ? greet() : name === 'tl' ? '日ごとの記録' : name === 'gr' ? '2週間の流れ' : 'お知らせ');
+    setT('topSub', name === 'rec' ? greet() : name === 'tl' ? '日ごとの記録' : name === 'gr' ? '横にスワイプでグラフ切り替え' : name === 'ai' ? 'お知らせ' : '区や都のサービス');
     window.scrollTo(0, 0);
     if (name === 'tl') loadDay();
-    if (name === 'gr') { if (gData) drawRhythm(); if (sData) drawStats(); loadGraph(); loadStats(); }
+    if (name === 'gr') { if (gData) drawRhythm(); if (sData) drawStats(); loadGraph().then(loadStats); }
+    if (name === 'ta') { drawLinks(); loadLinks(); }
     if (name === 'ai') { if (nData) drawNotices(); loadNotices(); }
   }
   for (var tk in TABS) (function (k) { $(TABS[k][0]).addEventListener('click', function () { setTab(k); }); })(tk);
@@ -583,7 +685,7 @@
   var sx = null, sy = null, sOk = false;
   document.addEventListener('touchstart', function (e) {
     var t = e.touches[0], el = e.target;
-    sOk = !(el.closest && el.closest('svg, .wheel, .sheetBg, input, textarea'));
+    sOk = !(el.closest && el.closest('.car, svg, .wheel, .sheetBg, input, textarea'));
     sx = t.clientX; sy = t.clientY;
   }, { passive: true });
   document.addEventListener('touchend', function (e) {
@@ -606,14 +708,16 @@
     fetchDay(key, function (res) { if (ymd(tlDay) === key) drawDay(res); }, function () { if (!tlCache[key]) setT('tlSum', '読み込めませんでした。'); });
   }
   function fetchDay(key, done, fail) {
-    call('apiDay', { date: key }, function (res) { tlCache[key] = res; if (done) done(res); }, fail);
+    return call('apiDay', { date: key }, function (res) { tlCache[key] = res; if (done) done(res); }, fail);
   }
   function drawDay(res) {
     var d = res.day, s = d.sum, sum = $('tlSum');
     sum.innerHTML = '';
-    [['母乳', s.bf + '回'], ['ミルク', s.milkN + '回 ' + s.milkMl + 'ml'], ['💧', s.pee + '回'], ['💩', s.poop + '回'],
-     ['睡眠', s.sleepN + '回 ' + s.sleepText], ['離乳食', s.food + '回']].forEach(function (p, i) {
-      var span = document.createElement('span'); span.innerHTML = (i ? '　' : '') + p[0] + ' <b></b>'; span.querySelector('b').textContent = p[1]; sum.appendChild(span);
+    [[['🤱', s.bf + '回'], ['🍼', s.milkN + '回 ' + s.milkMl + 'ml'], ['💧', s.pee + '回'], ['💩', s.poop + '回']],
+     [['😴', s.sleepN + '回 ' + s.sleepText], ['🥣', s.food + '回']]].forEach(function (line) {
+      var d = document.createElement('div');
+      line.forEach(function (p, i) { var span = document.createElement('span'); span.innerHTML = (i ? '　' : '') + p[0] + ' <b></b>'; span.querySelector('b').textContent = p[1]; d.appendChild(span); });
+      sum.appendChild(d);
     });
     var list = $('tlList'); list.innerHTML = '';
     if (!d.rows.length) { list.textContent = 'この日の記録はないで。'; return; }
@@ -626,8 +730,8 @@
   var gData = null, rhMode = 'all';
   var ARROW = { up: '↗ 多そう', down: '↘ 少なそう', flat: '→ いつも通り' };
   function loadGraph() {
-    if (!token) return;
-    call('apiGraph', {}, function (res) { gData = res; drawForecast(res.fc); if (curTab === 'gr') drawRhythm(); }, function () {});
+    if (!token) return Promise.resolve();
+    return call('apiGraph', {}, function (res) { gData = res; drawForecast(res.fc); if (curTab === 'gr') drawRhythm(); }, function () {});
   }
   function drawForecast(fc) {
     var m = fc.milk, s = fc.sleep;
@@ -644,19 +748,21 @@
   }
   var RANGE = { all: [0, 24], day: [6, 18], night: [18, 30] };
   var COLOR = { 'ミルク': '#12a886', '母乳': '#f0a020', '離乳食': '#e879a6', 'お風呂': '#8aa0b8' };
-  var rhHits = [];
+  var rhHits = [], rhSpan = 'week', rhRowH = 26, rhRows = 7;
   function svgEl(tag, attrs, parent) { var e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (var k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; }
   function clearSvg(svg) { while (svg.firstChild) svg.removeChild(svg.firstChild); }
   function hm(t) { var d = new Date(t); return d.getHours() + ':' + pad(d.getMinutes()); }
   function md(t) { var d = new Date(t); return (d.getMonth() + 1) + '/' + d.getDate(); }
   function durHM(ms) { var m = Math.round(ms / 60000); return Math.floor(m / 60) + ':' + pad(m % 60); }
+  // 1日のリズム：1週間（7段）が本。今日・昨日（2段）に切り替えられる。色はもとのダッシュボードと同じ
   function drawRhythm() {
     var svg = $('rhSvg'); clearSvg(svg); rhHits = [];
     if (!gData) return;
-    var W = svg.clientWidth || svg.parentNode.clientWidth - 24, L = 40, R = 6, rowH = 64, top = 4;
-    var r = RANGE[rhMode], span = (r[1] - r[0]) * 3600000;
-    svg.setAttribute('height', top + rowH * 2 + 18);
-    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + (top + rowH * 2 + 18));
+    var week = rhSpan === 'week';
+    rhRows = week ? 7 : 2; rhRowH = week ? 26 : 64;
+    var W = svg.clientWidth || 340, L = 40, R = 6, rowH = rhRowH, top = 4;
+    var r = RANGE[rhMode], span = (r[1] - r[0]) * 3600000, H = top + rowH * rhRows + 18;
+    svg.setAttribute('height', H); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     var t0 = new Date(gData.today + 'T00:00:00+09:00').getTime(), ev = gData.ev, now = gData.now;
     var sleeps = [], open = null;
     ev.forEach(function (e) { if (e.k === '寝た') open = e.t; else if (e.k === '起きた' && open != null) { sleeps.push([open, e.t, false]); open = null; } });
@@ -664,87 +770,92 @@
     var x = function (t, base) { return L + (t - base) / span * (W - L - R); };
     for (var h = r[0]; h <= r[1]; h += 2) {
       var gx = L + (h - r[0]) / (r[1] - r[0]) * (W - L - R);
-      svgEl('line', { x1: gx, x2: gx, y1: top, y2: top + rowH * 2, stroke: '#ececf2' }, svg);
-      var tx = svgEl('text', { x: gx, y: top + rowH * 2 + 13, 'font-size': 10, fill: '#777', 'text-anchor': 'middle' }, svg); tx.textContent = String(h % 24);
+      svgEl('line', { x1: gx, x2: gx, y1: top, y2: top + rowH * rhRows, stroke: '#ececf2' }, svg);
+      var tx = svgEl('text', { x: gx, y: top + rowH * rhRows + 13, 'font-size': 10, fill: '#777', 'text-anchor': 'middle' }, svg); tx.textContent = String(h % 24);
     }
     var shift = rhMode === 'night' && now < t0 + 18 * 3600000 ? 1 : 0;
     var NAMES = rhMode === 'night' ? ['今夜', 'ゆうべ', '一昨日'] : ['今日', '昨日'];
-    [0, 1].forEach(function (row) {
+    for (var row = 0; row < rhRows; row++) (function (row) {
       var dayBase = t0 - (row + shift) * 86400000, base = dayBase + r[0] * 3600000, end = base + span, y0 = top + row * rowH;
-      var lb = svgEl('text', { x: 0, y: y0 + rowH / 2 - 2, 'font-size': 11, fill: '#555' }, svg); lb.textContent = NAMES[row + shift];
-      var lb2 = svgEl('text', { x: 0, y: y0 + rowH / 2 + 11, 'font-size': 10, fill: '#888' }, svg); lb2.textContent = md(dayBase + 3600000);
-      var by = y0 + rowH / 2 - 8;
+      var dd = new Date(dayBase + 3600000);
+      if (week) {
+        var lw = svgEl('text', { x: 0, y: y0 + rowH / 2 + 4, 'font-size': 10, fill: row === 0 && !shift ? '#222' : '#777', 'font-weight': row === 0 && !shift ? 700 : 400 }, svg);
+        lw.textContent = md(dayBase + 3600000) + WD[dd.getDay()];
+        if (row) svgEl('line', { x1: L, x2: W - R, y1: y0, y2: y0, stroke: '#f3f2f8' }, svg);
+      } else {
+        var lb = svgEl('text', { x: 0, y: y0 + rowH / 2 - 2, 'font-size': 11, fill: '#555' }, svg); lb.textContent = NAMES[row + shift];
+        var lb2 = svgEl('text', { x: 0, y: y0 + rowH / 2 + 11, 'font-size': 10, fill: '#888' }, svg); lb2.textContent = md(dayBase + 3600000);
+      }
+      var bh = week ? 10 : 16, by = week ? y0 + 8 : y0 + rowH / 2 - 8, cy = week ? y0 + 4 : by - 9, cr = week ? 3 : 4;
       sleeps.forEach(function (s) {
         var a = Math.max(s[0], base), b = Math.min(s[1], end);
         if (b <= a) return;
         var sh = new Date(s[0]).getHours(), night = sh >= 19 || sh < 6, x1 = x(a, base), x2 = x(b, base);
-        svgEl('rect', { x: x1, y: by, width: Math.max(2, x2 - x1), height: 16, rx: 4, fill: night ? '#2f6fd6' : '#a9c8f3', opacity: s[2] ? 0.6 : 1 }, svg);
-        if (x2 - x1 > 34) { var t = svgEl('text', { x: (x1 + x2) / 2, y: by + 12, 'font-size': 10, fill: night ? '#fff' : '#234', 'text-anchor': 'middle' }, svg); t.textContent = durHM(s[1] - s[0]); }
+        svgEl('rect', { x: x1, y: by, width: Math.max(2, x2 - x1), height: bh, rx: week ? 3 : 4, fill: night ? '#2f6fd6' : '#a9c8f3', opacity: s[2] ? 0.6 : 1 }, svg);
+        if (!week && x2 - x1 > 34) { var t = svgEl('text', { x: (x1 + x2) / 2, y: by + 12, 'font-size': 10, fill: night ? '#fff' : '#234', 'text-anchor': 'middle' }, svg); t.textContent = durHM(s[1] - s[0]); }
         rhHits.push({ row: row, x1: x1, x2: x2, text: md(s[0]) + ' ' + hm(s[0]) + '〜' + (s[2] ? '今' : hm(s[1])) + '　' + (night ? '夜の睡眠 ' : '昼寝 ') + durHM(s[1] - s[0]) });
       });
       ev.forEach(function (e) {
         if (e.t < base || e.t > end) return;
         var ex = x(e.t, base), label = e.k + (e.a ? ' ' + e.a + (e.k === 'ミルク' ? 'ml' : '') : '') + (e.d ? ' ' + e.d : '');
         if (COLOR[e.k]) {
-          svgEl('circle', { cx: ex, cy: by - 9, r: 4, fill: COLOR[e.k] }, svg);
-          if (e.k === 'ミルク' && e.a) { var mt = svgEl('text', { x: ex, y: by - 16, 'font-size': 9, fill: '#555', 'text-anchor': 'middle' }, svg); mt.textContent = e.a; }
-        } else if (e.k === 'おしっこ') svgEl('path', { d: 'M' + ex + ' ' + (by + 20) + ' l4 7 l-8 0 z', fill: '#1a8f2e' }, svg);
-        else if (e.k === 'うんち') svgEl('rect', { x: ex - 3, y: by + 21, width: 6, height: 6, fill: '#6b46c1' }, svg);
+          svgEl('circle', { cx: ex, cy: cy, r: cr, fill: COLOR[e.k] }, svg);
+          if (!week && e.k === 'ミルク' && e.a) { var mt = svgEl('text', { x: ex, y: by - 16, 'font-size': 9, fill: '#555', 'text-anchor': 'middle' }, svg); mt.textContent = e.a; }
+        } else if (e.k === 'おしっこ') svgEl('path', { d: week ? 'M' + ex + ' ' + (by + bh + 1) + ' l3 5 l-6 0 z' : 'M' + ex + ' ' + (by + 20) + ' l4 7 l-8 0 z', fill: '#1a8f2e' }, svg);
+        else if (e.k === 'うんち') svgEl('rect', week ? { x: ex - 2.5, y: by + bh + 1, width: 5, height: 5, fill: '#6b46c1' } : { x: ex - 3, y: by + 21, width: 6, height: 6, fill: '#6b46c1' }, svg);
         else return;
         rhHits.push({ row: row, x1: ex - 1, x2: ex + 1, point: true, text: md(e.t) + ' ' + hm(e.t) + '　' + label });
       });
-      if (now >= base && now <= end) svgEl('line', { x1: x(now, base), x2: x(now, base), y1: y0 + 4, y2: y0 + rowH - 4, stroke: '#e8707a', 'stroke-dasharray': '3 3' }, svg);
-    });
+      if (now >= base && now <= end) svgEl('line', { x1: x(now, base), x2: x(now, base), y1: y0 + 2, y2: y0 + rowH - 2, stroke: '#e8707a', 'stroke-dasharray': '3 3' }, svg);
+    })(row);
   }
   function rhPick(clientX, clientY) {
     var svg = $('rhSvg'), b = svg.getBoundingClientRect();
-    var px = clientX - b.left, row = clientY - b.top < 4 + 64 ? 0 : 1, best = null, bd = 1e9;
+    var px = clientX - b.left, row = Math.max(0, Math.min(rhRows - 1, Math.floor((clientY - b.top - 4) / rhRowH))), best = null, bd = 1e9;
     rhHits.forEach(function (h) {
       if (h.row !== row) return;
       var d = h.point ? Math.abs(px - h.x1) : (px >= h.x1 && px <= h.x2 ? 6 : Math.min(Math.abs(px - h.x1), Math.abs(px - h.x2)) + 6);
       if (d < bd) { bd = d; best = h; }
     });
-    setT('rhRead', best && bd < 24 ? best.text : '点や帯をなぞると、その記録がここに出ます');
+    setT('rhRead', best && bd < 24 ? best.text : '点や帯に触れると、その記録がここに出ます');
   }
   var rhSvg = $('rhSvg');
   rhSvg.addEventListener('touchstart', function (e) { var t = e.touches[0]; rhPick(t.clientX, t.clientY); }, { passive: true });
   rhSvg.addEventListener('touchmove', function (e) { var t = e.touches[0]; rhPick(t.clientX, t.clientY); }, { passive: true });
   rhSvg.addEventListener('mousemove', function (e) { rhPick(e.clientX, e.clientY); });
-  document.querySelectorAll('#rhSeg button').forEach(function (b) {
-    b.addEventListener('click', function () { rhMode = b.getAttribute('data-r'); document.querySelectorAll('#rhSeg button').forEach(function (x) { x.classList.toggle('on', x === b); }); drawRhythm(); });
-  });
+  function segOn(id, b) { document.querySelectorAll('#' + id + ' button').forEach(function (x) { x.classList.toggle('on', x === b); }); }
+  document.querySelectorAll('#rhSeg button').forEach(function (b) { b.addEventListener('click', function () { rhMode = b.getAttribute('data-r'); segOn('rhSeg', b); drawRhythm(); }); });
+  document.querySelectorAll('#rhSpan button').forEach(function (b) { b.addEventListener('click', function () { rhSpan = b.getAttribute('data-s'); segOn('rhSpan', b); drawRhythm(); }); });
+  // 横にスワイプするカード（リズム → ミルク量 → 睡眠時間）。下の点々で今の位置
+  $('car').addEventListener('scroll', function () {
+    var i = Math.round(this.scrollLeft / Math.max(1, this.clientWidth));
+    document.querySelectorAll('#dots i').forEach(function (d, j) { d.classList.toggle('on', j === i); });
+  }, { passive: true });
 
   // ===== みよか：2週間の集計・発育・離乳食（apiStats） =====
-  var sData = null, gwMode = 'w';
+  var sData = null, gwMode = 'hw';
   function loadStats() {
-    if (!token) return;
-    call('apiStats', {}, function (res) { sData = res; if (curTab === 'gr') drawStats(); }, function () {});
+    if (!token) return Promise.resolve();
+    return call('apiStats', {}, function (res) { sData = res; if (curTab === 'gr') drawStats(); }, function () {});
   }
-  function sparkline(svg, vals, color) {
+  function bars(svg, days, getVals, colors, readId, fmt, unit) {
     clearSvg(svg);
-    var W = svg.clientWidth || 140, H = 34, n = vals.length, max = Math.max.apply(null, vals.concat([1]));
-    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-    var pts = vals.map(function (v, i) { return (4 + i * (W - 8) / Math.max(1, n - 1)) + ',' + (H - 4 - v / max * (H - 10)); });
-    svgEl('polyline', { points: pts.join(' '), fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round' }, svg);
-    var last = pts[pts.length - 1].split(',');
-    svgEl('circle', { cx: last[0], cy: last[1], r: 3, fill: color }, svg);
-  }
-  function bars(svg, days, getVals, colors, readId, fmt) {
-    clearSvg(svg);
-    var W = svg.clientWidth || 340, H = 120, L = 6, R = 6, B = 16, n = days.length, bw = (W - L - R) / n;
+    var W = svg.clientWidth || 340, H = Number(svg.getAttribute('height')) || 200, L = 6, R = 6, B = 16, T = 14, n = days.length, bw = (W - L - R) / n;
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     var tot = days.map(function (d) { return getVals(d).reduce(function (a, b) { return a + b; }, 0); });
     var max = Math.max.apply(null, tot.concat([1]));
-    svgEl('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: '#d9d5f0' }, svg);
+    svgEl('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: '#dcdce6' }, svg);
     days.forEach(function (d, i) {
       var vs = getVals(d), y = H - B, x0 = L + i * bw + bw * 0.15, w = bw * 0.7;
       vs.forEach(function (v, j) {
-        var h = v / max * (H - B - 8);
+        var h = v / max * (H - B - T - 4);
         svgEl('rect', { x: x0, y: y - h, width: w, height: h, fill: d.today ? colors[j][1] : colors[j][0], rx: 2 }, svg);
         y -= h;
       });
-      if (i === 0 || i === n - 1 || i === Math.floor(n / 2)) { var t = svgEl('text', { x: x0 + w / 2, y: H - 3, 'font-size': 9, fill: '#777', 'text-anchor': 'middle' }, svg); t.textContent = d.d; }
+      if (d.today || i === 0 || i === Math.floor(n / 2)) { var t = svgEl('text', { x: x0 + w / 2, y: H - 3, 'font-size': 9, fill: '#777', 'text-anchor': 'middle' }, svg); t.textContent = d.d; }
+      if (d.today && tot[i]) { var v2 = svgEl('text', { x: x0 + w / 2, y: y - 3, 'font-size': 10, fill: '#222', 'text-anchor': 'middle', 'font-weight': 700 }, svg); v2.textContent = Math.round(tot[i] * 10) / 10; }
     });
+    var mx = svgEl('text', { x: L, y: 10, 'font-size': 9, fill: '#999' }, svg); mx.textContent = '最大 ' + Math.round(max * 10) / 10 + unit;
     var pick = function (clientX) {
       var b = svg.getBoundingClientRect(), i = Math.max(0, Math.min(n - 1, Math.floor((clientX - b.left - L) / bw)));
       setT(readId, fmt(days[i]));
@@ -752,75 +863,76 @@
     svg.ontouchstart = svg.ontouchmove = function (e) { pick(e.touches[0].clientX); };
     svg.onmousemove = function (e) { pick(e.clientX); };
   }
+  // 発育曲線：身長（左の目盛り・青）と体重（右の目盛り・ピンク）を1枚に。切り替えで頭囲（オレンジ）
   function growthCurve(svg, mode, readId) {
     clearSvg(svg);
-    var g = sData.growth, ref = g.ref, pts = mode === 'w' ? g.w : g.h, tbl = mode === 'w' ? ref.kg : ref.cm;
-    var W = svg.clientWidth || 340, H = 150, L = 28, R = 6, T = 6, B = 16;
+    var g = sData.growth, ref = g.ref;
+    var W = svg.clientWidth || 340, H = Number(svg.getAttribute('height')) || 200, L = 30, R = 30, T = 8, B = 16, ph = H - T - B;
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-    var aMax = Math.max(12, Math.ceil(g.ageNow + 1)), aMin = 0;
+    var S = mode === 'hw'
+      ? [{ pts: g.h, tbl: ref.cm, c: '#2f6fd6', f: '#dbe7fb', u: 'cm', nm: '身長', y0: T, y1: T + ph * 0.56, left: true },
+         { pts: g.w, tbl: ref.kg, c: '#e0558f', f: '#fbdcea', u: 'kg', nm: '体重', y0: T + ph * 0.44, y1: T + ph, left: false }]
+      : [{ pts: g.hc || [], tbl: ref.hc, c: '#e08a00', f: '#fdebcf', u: 'cm', nm: '頭囲', y0: T, y1: T + ph, left: true }];
+    var aMax = Math.max(12, Math.ceil(g.ageNow + 1));
     var idx = ref.age.map(function (a, i) { return i; }).filter(function (i) { return ref.age[i] <= aMax + 3; });
-    var vMin = tbl.lo[0], vMax = tbl.hi[idx[idx.length - 1]];
-    var X = function (a) { return L + (a - aMin) / (aMax - aMin) * (W - L - R); };
-    var Y = function (v) { return T + (vMax - v) / (vMax - vMin) * (H - T - B); };
-    var path = function (key) { return idx.map(function (i, j) { return (j ? 'L' : 'M') + X(ref.age[i]) + ',' + Y(tbl[key][i]); }).join(' '); };
-    svgEl('path', { d: path('hi') + ' ' + idx.slice().reverse().map(function (i) { return 'L' + X(ref.age[i]) + ',' + Y(tbl.lo[i]); }).join(' ') + ' Z', fill: '#efedfb' }, svg);
-    svgEl('path', { d: path('mid'), fill: 'none', stroke: '#c9c3f0', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' }, svg);
-    for (var m = 0; m <= aMax; m += 2) { var tx = svgEl('text', { x: X(m), y: H - 3, 'font-size': 9, fill: '#777', 'text-anchor': 'middle' }, svg); tx.textContent = m + 'か月'; }
-    [vMin, (vMin + vMax) / 2, vMax].forEach(function (v) { var ty = svgEl('text', { x: 0, y: Y(v) + 3, 'font-size': 9, fill: '#777' }, svg); ty.textContent = Math.round(v * 10) / 10; });
-    if (pts.length) {
-      svgEl('polyline', { points: pts.map(function (p) { return X(p.age) + ',' + Y(p.v); }).join(' '), fill: 'none', stroke: '#5b4fd6', 'stroke-width': 2 }, svg);
-      pts.forEach(function (p) { svgEl('circle', { cx: X(p.age), cy: Y(p.v), r: 3, fill: p.est ? '#fff' : '#5b4fd6', stroke: '#5b4fd6', 'stroke-width': 1.5 }, svg); });
-    }
-    var unit = mode === 'w' ? 'kg' : 'cm';
+    var X = function (a) { return L + a / aMax * (W - L - R); };
+    for (var m = 0; m <= aMax; m += 2) { var tx = svgEl('text', { x: X(m), y: H - 3, 'font-size': 9, fill: '#777', 'text-anchor': 'middle' }, svg); tx.textContent = m + (m === 0 ? 'か月' : ''); svgEl('line', { x1: X(m), x2: X(m), y1: T, y2: H - B, stroke: '#f1f0f6' }, svg); }
+    svgEl('clipPath', { id: 'gwClip' }, svg).appendChild((function () { var r = document.createElementNS('http://www.w3.org/2000/svg', 'rect'); r.setAttribute('x', L); r.setAttribute('y', 0); r.setAttribute('width', W - L - R); r.setAttribute('height', H); return r; })());
+    S.forEach(function (s) {
+      if (!s.tbl) return;
+      var vMin = s.tbl.lo[0], vMax = growthMax(s.tbl, ref.age, aMax);
+      s.Y = function (v) { return s.y0 + (vMax - v) / (vMax - vMin) * (s.y1 - s.y0); };
+      var path = function (key) { return idx.map(function (i, j) { return (j ? 'L' : 'M') + X(ref.age[i]) + ',' + s.Y(s.tbl[key][i]); }).join(' '); };
+      svgEl('path', { d: path('hi') + ' ' + idx.slice().reverse().map(function (i) { return 'L' + X(ref.age[i]) + ',' + s.Y(s.tbl.lo[i]); }).join(' ') + ' Z', fill: s.f, opacity: 0.8, 'clip-path': 'url(#gwClip)' }, svg);
+      svgEl('path', { d: path('mid'), fill: 'none', stroke: s.c, 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: 0.5, 'clip-path': 'url(#gwClip)' }, svg);
+      [vMin, vMax].forEach(function (v) { var ty = svgEl('text', { x: s.left ? 0 : W - R + 3, y: s.Y(v) + (v === vMax ? 8 : 0), 'font-size': 9, fill: s.c }, svg); ty.textContent = (Math.round(v * 10) / 10) + (v === vMax ? s.u : ''); });
+      if (s.pts.length) {
+        svgEl('polyline', { points: s.pts.map(function (p) { return X(p.age) + ',' + s.Y(p.v); }).join(' '), fill: 'none', stroke: s.c, 'stroke-width': 2 }, svg);
+        s.pts.forEach(function (p) { svgEl('circle', { cx: X(p.age), cy: s.Y(p.v), r: 3, fill: p.est ? '#fff' : s.c, stroke: s.c, 'stroke-width': 1.5 }, svg); });
+      }
+    });
+    var cur = svgEl('line', { x1: -9, x2: -9, y1: T, y2: H - B, stroke: '#999', 'stroke-dasharray': '2 2' }, svg);
     var pick = function (clientX) {
       var b = svg.getBoundingClientRect(), px = clientX - b.left, best = null, bd = 1e9;
-      pts.forEach(function (p) { var d = Math.abs(X(p.age) - px); if (d < bd) { bd = d; best = p; } });
-      if (best) setT(readId, best.d + '　' + best.v + unit + '（' + best.age + 'か月）' + (best.est ? '・推定' : ''));
+      S.forEach(function (s) { s.pts.forEach(function (p) { var d = Math.abs(X(p.age) - px); if (d < bd) { bd = d; best = p; } }); });
+      if (!best) return;
+      cur.setAttribute('x1', X(best.age)); cur.setAttribute('x2', X(best.age));
+      var parts = [];
+      S.forEach(function (s) { s.pts.forEach(function (p) { if (p.d === best.d && Math.abs(p.age - best.age) < 0.05) parts.push(s.nm + ' ' + p.v + s.u); }); });
+      setT(readId, best.d + '（' + best.age + 'か月）　' + parts.join('・'));
     };
     svg.ontouchstart = svg.ontouchmove = function (e) { pick(e.touches[0].clientX); };
     svg.onmousemove = function (e) { pick(e.clientX); };
   }
-  function chips(el, list) {
+  function growthMax(tbl, ages, aMax) { var v = tbl.hi[0]; ages.forEach(function (a, i) { if (a <= aMax + 3) v = Math.max(v, tbl.hi[i]); }); return v; }
+  function chips(el, list, empty) {
     el.innerHTML = '';
-    list.forEach(function (f) { var s = document.createElement('span'); s.className = 'chip' + (f.star ? ' star' : f.n === 1 ? ' one' : ''); s.textContent = (f.star ? '★' : '') + f.food + (f.n === 1 ? '（1回）' : ''); el.appendChild(s); });
+    if (!list || !list.length) { var e = document.createElement('span'); e.className = 'ms'; e.style.fontSize = '12px'; e.style.color = '#777'; e.textContent = empty || 'なし'; el.appendChild(e); return; }
+    list.forEach(function (f) { var s = document.createElement('span'); s.className = 'chip' + (f.n >= 2 ? ' done' : f.star ? ' star' : f.n === 1 ? ' one' : ''); s.textContent = (f.n >= 2 ? '✓ ' : '') + (f.star ? '★' : '') + f.food + (f.n === 1 ? '（1回）' : ''); el.appendChild(s); });
   }
   function drawStats() {
     if (!sData) return;
-    var d = sData.daily, today = d[d.length - 1];
-    var P = '#5b4fd6', P2 = '#a9a0ef';
-    // 小さいカード
-    $('m-ml').innerHTML = today.milkMl + '<small>ml 今日</small>';
-    sparkline($('m-mlS'), d.map(function (x) { return x.milkMl; }), P);
-    setT('m-mlU', '今日 ミルク' + today.milkN + '回・母乳' + today.bf + '回');
-    $('m-sl').innerHTML = (Math.round((today.night + today.day) * 10) / 10) + '<small>時間 今日</small>';
-    sparkline($('m-slS'), d.map(function (x) { return x.night + x.day; }), P);
-    setT('m-slU', '今日 夜' + today.night + '・昼' + today.day);
-    var g = sData.growth;
-    $('m-gw').innerHTML = (g.lastW ? g.lastW.v + '<small>kg</small>' : '–') + '　' + (g.lastH ? g.lastH.v + '<small>cm</small>' : '');
-    sparkline($('m-gwS'), g.w.slice(-8).map(function (p) { return p.v; }), P);
-    setT('m-gwU', (g.bandW || '') + (g.lastW ? '・最終 ' + g.lastW.d : ''));
-    var f = sData.foods;
-    chips($('m-rec'), f.recommend);
-    var ml = $('m-meals'); ml.innerHTML = '';
-    f.meals.forEach(function (m) { var e = document.createElement('div'); e.className = 'meal'; e.textContent = m.at + ' ' + m.detail; ml.appendChild(e); });
-    setT('m-fp', 'クリア ' + f.cleared + '/' + f.total + '・★' + f.starDone + '/' + f.starTotal);
-    $('m-fb').style.width = Math.round(f.cleared / f.total * 100) + '%';
-    // 大きいグラフ
-    bars($('b-ml'), d, function (x) { return [x.milkMl]; }, [[P2, P]], 'b-mlR', function (x) { return x.d + '　ミルク ' + x.milkMl + 'ml（' + x.milkN + '回）・母乳 ' + x.bf + '回'; });
-    bars($('b-sl'), d, function (x) { return [x.night, x.day]; }, [[P2, P], ['#dcd8f6', '#c9c3f0']], 'b-slR', function (x) { return x.d + '　合計 ' + (Math.round((x.night + x.day) * 10) / 10) + '時間（夜 ' + x.night + '・昼 ' + x.day + '）'; });
+    var d = sData.daily, g = sData.growth;
+    bars($('b-ml'), d, function (x) { return [x.milkMl]; }, [['#9ad9c9', '#12a886']], 'b-mlR', function (x) { return x.d + '　ミルク ' + x.milkMl + 'ml（' + x.milkN + '回）・母乳 ' + x.bf + '回'; }, 'ml');
+    bars($('b-sl'), d, function (x) { return [x.night, x.day]; }, [['#8fb0e8', '#2f6fd6'], ['#d3e3f8', '#a9c8f3']], 'b-slR', function (x) { return x.d + '　合計 ' + (Math.round((x.night + x.day) * 10) / 10) + '時間（夜 ' + x.night + '・昼 ' + x.day + '）'; }, '時間');
     growthCurve($('b-gw'), gwMode, 'b-gwR');
-    setT('b-gwT', gwMode === 'w' ? '発育曲線（体重）' : '発育曲線（身長）');
-    setT('b-gwSw', gwMode === 'w' ? '身長を見る' : '体重を見る');
-    setT('b-gwR', gwMode === 'w' ? (g.lastW ? '最新 ' + g.lastW.d + '　' + g.lastW.v + 'kg・' + g.bandW : '体重の記録がまだありません') : (g.lastH ? '最新 ' + g.lastH.d + '　' + g.lastH.v + 'cm・' + g.bandH : '身長の記録がまだありません'));
-    setT('b-fdT', f.remaining.length + '品');
-    var fd = $('b-fd'); fd.innerHTML = '';
-    [['★ 保育園に向けて', f.remaining.filter(function (r) { return r.star; })], ['そのほか', f.remaining.filter(function (r) { return !r.star; })]].forEach(function (grp) {
-      if (!grp[1].length) return;
-      var h = document.createElement('div'); h.className = 'fgrp'; h.textContent = grp[0]; fd.appendChild(h);
-      var box = document.createElement('div'); chips(box, grp[1]); fd.appendChild(box);
-    });
+    if (gwMode === 'hw') setT('b-gwR', '最新　' + (g.lastH ? '身長 ' + g.lastH.v + 'cm（' + g.lastH.d + '・' + g.bandH + '）' : '身長 –') + '　' + (g.lastW ? '体重 ' + g.lastW.v + 'kg（' + g.lastW.d + '・' + g.bandW + '）' : '体重 –'));
+    else setT('b-gwR', g.lastHC ? '最新　頭囲 ' + g.lastHC.v + 'cm（' + g.lastHC.d + '・' + g.bandHC + '）' : '頭囲の記録はまだないで。「身長」ボタンの中から入れられます');
+    // 離乳食：次の目標・あと1回・量の目安・最近の献立・全部の食材（折りたたみ）
+    var f = sData.foods;
+    setT('fd-stage', f.guide ? f.guide.stage + '・' + f.guide.times : '');
+    setT('fd-goalL', '次の目標：' + (f.goalLabel || '保育園の★'));
+    chips($('fd-goals'), f.goals || f.recommend, '表の食材は全部クリア！');
+    chips($('fd-one'), f.oneMore || [], '今はなし');
+    var gd = $('fd-guide'); gd.innerHTML = '';
+    if (f.guide) f.guide.items.forEach(function (it) { var s = document.createElement('span'); s.className = 'gi'; s.innerHTML = '<b></b>'; s.querySelector('b').textContent = it[0]; s.appendChild(document.createTextNode(it[1])); gd.appendChild(s); });
+    setT('fd-note', f.guide ? f.guide.note : '');
+    var ml = $('m-meals'); ml.innerHTML = '';
+    f.meals.forEach(function (m) { var e = document.createElement('div'); e.className = 'meal'; e.style.fontSize = '12px'; e.textContent = m.at + '　' + m.detail; ml.appendChild(e); });
+    setT('fd-allL', '全部の食材（クリア ' + f.cleared + '/' + f.total + '・★ ' + f.starDone + '/' + f.starTotal + '）');
+    chips($('fd-all'), f.all || f.remaining);
   }
-  $('b-gwSw').addEventListener('click', function () { gwMode = gwMode === 'w' ? 'h' : 'w'; drawStats(); });
+  document.querySelectorAll('#gwSeg button').forEach(function (b) { b.addEventListener('click', function () { gwMode = b.getAttribute('data-g'); segOn('gwSeg', b); drawStats(); }); });
   window.addEventListener('resize', function () { if (curTab === 'gr') { drawRhythm(); drawStats(); } });
 
   // ===== しゃべろ：お知らせ（気づき・Siri の確認・ひとこと・離乳食クリア）とチャット（準備中） =====
@@ -828,18 +940,19 @@
   var seen = Number(store('ikuji_seen') || 0);
   function unreadCount() {
     var n = checksData.length;
-    if (nData) nData.notices.forEach(function (x) { if (x.t > seen) n++; });
+    if (nData) { nData.notices.forEach(function (x) { if (x.t > seen) n++; }); (nData.qa || []).forEach(function (x) { if (x.done && x.at > seen) n++; }); }
     return n;
   }
   function drawBadge() { var n = unreadCount(); $('aiBadge').textContent = n; show('aiBadge', n > 0 && curTab !== 'ai'); }
   function loadNotices() {
-    if (!token) return;
-    call('apiNotices', {}, function (res) { nData = res; checksData = res.checks || []; if (curTab === 'ai') drawNotices(); drawBadge(); }, function () { if (!nData && $('ntLoad')) setT('ntLoad', '読み込めませんでした。'); });
+    if (!token) return Promise.resolve();
+    return call('apiNotices', {}, function (res) { nData = res; checksData = res.checks || []; if (curTab === 'ai') drawNotices(); drawBadge(); }, function () { if (!nData && $('ntLoad')) setT('ntLoad', '読み込めませんでした。'); });
   }
+  var ntAll = false, kzSession = '';
   function drawNotices() {
-    var box = $('ntBox'); box.innerHTML = '';
     if (!nData) return;
-    // Siri の記録の確認（直す／そのまま）
+    // 上：記録の確認（直す／そのまま）。残しておく情報
+    var cb = $('chkBox'); cb.innerHTML = '';
     checksData.forEach(function (c) {
       var d = document.createElement('div'), when = c.at.replace(/^\d{4}\//, '').replace(/(\d+:\d+):\d+$/, '$1');
       d.className = 'chk';
@@ -853,32 +966,109 @@
         var b = document.createElement('button'); b.className = 'small' + (a[0] === 'fix' ? ' fix' : ''); b.textContent = a[1];
         b.addEventListener('click', function () {
           if (busy) return; setBusy(true);
-          call('apiCheck', { row: c.row, act: a[0], who: getWho() }, function (res) { setBusy(false); say(res.message, false); afterChange(); loadNotices(); }, function () { setBusy(false); });
+          call('apiCheck', { row: c.row, act: a[0], who: getWho() }, function (res) { setBusy(false); say(res.message, false); afterChange(); }, function () { setBusy(false); });
         });
         r.appendChild(b);
       });
-      d.appendChild(t); d.appendChild(m); d.appendChild(w); d.appendChild(r); box.appendChild(d);
+      d.appendChild(t); d.appendChild(m); d.appendChild(w); d.appendChild(r); cb.appendChild(d);
     });
-    // 今週の気づき
-    if (nData.kizuki && nData.kizuki.text) box.appendChild(notice('今週の気づき', nData.kizuki.meta, nData.kizuki.text, '', false));
-    // お知らせ（新しい順）
-    nData.notices.forEach(function (x) { box.appendChild(notice(x.kind || 'お知らせ', x.at, x.text, x.link, x.t > seen)); });
-    if (!box.children.length) { var e = document.createElement('div'); e.className = 'card'; e.textContent = 'まだお知らせはないで。朝のひとことや、離乳食のクリアがここに出ます。'; box.appendChild(e); }
+    // 今週の気づき：折りたたみ。新しい気づきを初めて見るときだけ開いておく
+    var kz = nData.kizuki, kb = $('kzBox');
+    show('kzBox', !!(kz && kz.text));
+    if (kz && kz.text) {
+      var key = kz.meta + ':' + kz.text.length;
+      if (store('ikuji_kz') !== key || kzSession === key) { kb.open = true; kzSession = key; store('ikuji_kz', key); }
+      setT('kzMeta', kz.meta); setT('kzText', kz.text);
+    }
+    // 下：お知らせはチャットの吹き出し。古い順に上から、新しいものが下。今日と昨日だけ（前の分は「前のお知らせを見る」）
+    var box = $('ntBox'); box.innerHTML = '';
+    var cutoff = addDays(today0(), -1).getTime();
+    var all = nData.notices.slice();
+    (nData.qa || []).forEach(function (x) {
+      all.push({ t: x.t, kind: x.who || '質問', text: x.q, me: true, wait: !x.done });
+      if (x.done) all.push({ t: x.at || x.t + 1, kind: 'Claude', text: x.a, link: x.link, q: x.q, ans: true });
+    });
+    all.sort(function (a, b) { return a.t - b.t; });
+    var list = ntAll ? all : all.filter(function (x) { return x.t >= cutoff; });
+    show('ntMore', !ntAll && all.length > list.length);
+    var lastDay = '';
+    list.forEach(function (x) {
+      var d = new Date(x.t), dk = dayLabel(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+      if (dk !== lastDay) { var sp = document.createElement('div'); sp.className = 'dsep'; sp.textContent = dk; box.appendChild(sp); lastDay = dk; }
+      var m = document.createElement('div'); m.className = 'bm'; m.innerHTML = '<b></b>'; m.querySelector('b').textContent = x.kind || 'お知らせ'; m.appendChild(document.createTextNode(hm(x.t))); box.appendChild(m);
+      if (x.wait) m.appendChild(document.createTextNode('　返事待ち'));
+      var b = document.createElement('div'); b.className = 'bb' + (x.me ? ' me' : x.t > seen ? ' new' : ''); b.textContent = x.text;
+      if (x.link) { var a = document.createElement('a'); a.href = x.link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '開く ↗'; b.appendChild(a); }
+      if (x.ans) {
+        // Claude のアプリ（または claude.ai）で、この質問と返事を持って新しいチャットを開く。長いと入りきらないことがあるので、コピーもしておく
+        var c = document.createElement('button'); c.className = 'cont'; c.textContent = 'Claude で続きを聞く ↗';
+        c.addEventListener('click', function () {
+          var t = '育児記録アプリ「ねんねミルク」で次の質問をして、返事をもらいました。この続きを相談させてください。\n\n質問：' + x.q + '\n\n返事：' + x.text;
+          try { navigator.clipboard.writeText(t); } catch (e) {}
+          window.open('https://claude.ai/new?q=' + encodeURIComponent(t.slice(0, 1500)), '_blank');
+        });
+        b.appendChild(c);
+      }
+      var wrap = document.createElement('div'); if (x.me) { wrap.className = 'rt'; m.style.textAlign = 'right'; } wrap.appendChild(b); box.appendChild(wrap);
+    });
+    if (!list.length) { var e = document.createElement('div'); e.className = 'dsep'; e.textContent = '今日と昨日のお知らせはないで。朝のひとこと、離乳食のクリア、質問の返事がここに出ます。'; box.appendChild(e); }
     seen = nData.now || Date.now(); store('ikuji_seen', seen); drawBadge();
   }
-  function notice(kind, at, text, link, isNew) {
-    var d = document.createElement('div'); d.className = 'nt' + (isNew ? ' new' : '');
-    var k = document.createElement('div'); k.className = 'nk'; k.innerHTML = '<b></b><span></span>'; k.querySelector('b').textContent = kind; k.querySelector('span').textContent = at || ''; d.appendChild(k);
-    var x = document.createElement('div'); x.className = 'nx'; x.textContent = text; d.appendChild(x);
-    if (link) { var a = document.createElement('a'); a.href = link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '開く ↗'; d.appendChild(a); }
-    return d;
+  $('ntMore').addEventListener('click', function () { ntAll = true; drawNotices(); });
+  // 質問を送る：「質問」シートに入り、スケジュール済みタスクが毎時53分ごろ（7〜22時）に答える
+  function ask(text) {
+    text = String(text || '').trim();
+    if (!text || busy) return;
+    setBusy(true);
+    call('apiAsk', { text: text, who: getWho() }, function (res) {
+      setBusy(false); $('chatIn').value = '';
+      if (nData) { nData.qa = res.qa || nData.qa; drawNotices(); }
+      say(res.message, false);
+    }, function () { setBusy(false); });
+  }
+  $('chatGo').addEventListener('click', function () { ask($('chatIn').value); });
+  document.querySelectorAll('.cq [data-q]').forEach(function (b) { b.addEventListener('click', function () { $('chatIn').value = b.getAttribute('data-q'); $('chatIn').focus(); }); });
+
+  // ===== たよろか：区や都のリンク集（「リンク」シート）。前に読んだ分を覚えておいて、すぐ出す =====
+  var lData = null;
+  try { lData = JSON.parse(store('ikuji_links') || 'null'); } catch (e) {}
+  function loadLinks() {
+    if (!token) return Promise.resolve();
+    return call('apiLinks', {}, function (res) { lData = res.links || []; store('ikuji_links', JSON.stringify(lData)); if (curTab === 'ta') drawLinks(); }, function () {});
+  }
+  function drawLinks() {
+    var box = $('lkBox');
+    if (!lData) return;
+    box.innerHTML = '';
+    if (!lData.length) { var e = document.createElement('div'); e.className = 'card'; e.textContent = 'リンクはまだないで。「リンク」シートに足すと、ここに出ます。'; box.appendChild(e); return; }
+    var groups = [], by = {};
+    lData.forEach(function (l) { if (!by[l.group]) { by[l.group] = []; groups.push(l.group); } by[l.group].push(l); });
+    groups.forEach(function (gname) {
+      var c = document.createElement('div'); c.className = 'card';
+      var h = document.createElement('h2'); h.textContent = gname; c.appendChild(h);
+      by[gname].forEach(function (l) {
+        var a = document.createElement('a'); a.className = 'lk'; a.href = l.url; a.target = '_blank'; a.rel = 'noopener';
+        var d = document.createElement('div'), b = document.createElement('b'); b.textContent = l.name; d.appendChild(b);
+        if (l.note) { var sp = document.createElement('span'); sp.textContent = l.note; d.appendChild(sp); }
+        var i = document.createElement('i'); i.textContent = '↗';
+        a.appendChild(d); a.appendChild(i); c.appendChild(a);
+      });
+      box.appendChild(c);
+    });
   }
 
   // ===== 開いたとき：まとめ → 裏で今日のながれ・みよか・しゃべろも先に取っておく =====
-  function prefetchAll() { if (!token) return; fetchDay(ymd(today0())); loadGraph(); loadStats(); loadNotices(); }
+  // 同時に投げず、1つずつ順番に（同時だと iPhone で通信が切れることがあった。2026-11-10 夜）
+  var preBusy = false, preAgain = false;
+  function prefetchAll() {
+    if (!token) return;
+    if (preBusy) { preAgain = true; return; }
+    preBusy = true;
+    fetchDay(ymd(today0())).then(loadGraph).then(loadStats).then(loadNotices).then(loadLinks).then(function () { preBusy = false; if (preAgain) { preAgain = false; prefetchAll(); } });
+  }
   setT('topSub', greet());
   refresh(function () { prefetchAll(); });
-  setInterval(function () { if (busy) return; refresh(); if (curTab === 'gr') { loadGraph(); loadStats(); } if (curTab === 'ai') loadNotices(); }, 120000);
+  setInterval(function () { if (busy) return; refresh(); if (curTab === 'gr') loadGraph().then(loadStats); if (curTab === 'ai') loadNotices(); }, 120000);
   if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
 </script>
 </body></html>
