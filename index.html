@@ -84,6 +84,10 @@
   .dtRow .dtBtn { flex: 1; display: flex; justify-content: space-between; align-items: center; background: var(--pl); font-size: 15px; padding: 9px 10px; min-width: 0; }
   .dtRow .dtBtn span + span { font-variant-numeric: tabular-nums; font-weight: 600; }
   .dtRow .dtBtn.custom { background: #fff1d6; }
+  /* 日時は iPhone 標準の選び方に（11-14a）：見た目は今までのボタンのまま、上に見えない日付の欄（左）と時刻の欄（右）を重ねる */
+  .dtRow .dtBtn { position: relative; border-radius: 11px; }
+  .dtBtn input { position: absolute; top: 0; height: 100%; opacity: 0; border: 0; padding: 0; margin: 0; }
+  #dDate { left: 0; width: 58%; } #dTime { right: 0; width: 42%; }
   .dtRow .nowBtn { flex: none; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; background: var(--pl); color: var(--p); }
   .dtRow .nowBtn svg { width: 20px; height: 20px; }
   .seg { display: flex; flex: none; background: var(--pl); border-radius: 11px; padding: 2px; }
@@ -225,6 +229,8 @@
   #msg { font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
   #msgCard { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 18; margin: 0; box-shadow: 0 6px 24px rgba(0,0,0,.18); max-height: 60vh; overflow-y: auto; }
   #tokenCard { margin-bottom: 7px; }
+  /* 振動用：ボタンの上に重ねる、見えないスイッチ（指で本当に押したときだけ iPhone が振動する。2026-11-13 夜） */
+  input.hp { position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; font-size: 0; }
   /* ながれの［直す］（2026-11-13） */
   .ri .x.ed { cursor: pointer; }
   .ri .x.ed::after { content: ' ✎'; color: #b7b3d6; font-size: 12px; }
@@ -276,7 +282,7 @@
 
   <div class="card">
     <div class="dtRow">
-      <button class="dtBtn" id="dtBtn" aria-label="いつの記録か"><span id="dtDay">今日</span><span id="dtTime">0:00</span></button>
+      <div class="dtBtn" id="dtBtn"><span id="dtDay">今日</span><span id="dtTime">0:00</span><input type="date" id="dDate" aria-label="記録の日付"><input type="time" id="dTime" aria-label="記録の時刻"></div>
       <button class="nowBtn" id="nowBtn" aria-label="時刻を今に戻して読み直す"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></button>
       <div class="seg" id="whoSeg"><button data-who="パパ" class="on">パパ</button><button data-who="ママ">ママ</button></div>
     </div>
@@ -447,6 +453,16 @@
     </div>
   </div>
 
+  <!-- 自分が送った質問・メンテのメモを直す／消す（11-14a） -->
+  <div class="sheetBg" id="cEditBg" hidden>
+    <div class="sheet">
+      <div class="sheetHead"><button id="cCancel">キャンセル</button><b>送ったものを直す</b><button id="cOk" class="ok">直す</button></div>
+      <textarea class="memo" id="cText"></textarea>
+      <div class="hint" id="cHint"></div>
+      <button class="go" id="cDel" style="background:#d9534f"><span id="cDelT">消す</span></button>
+    </div>
+  </div>
+
   <div class="card" id="msgCard" hidden>
     <div id="msg"></div>
     <div class="row">
@@ -456,7 +472,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-13a';
+  var VERSION = '2026-11-14a';
   // iPhone のホーム画面アプリだけ：ページを画面の高さ（screen.height）以上にして、下のタブが浮くのを防ぐ。向きを変えたときも合わせ直す
   function fixStandalone() { try { if (navigator.standalone === true) document.body.style.minHeight = (Math.abs(window.orientation) === 90 ? screen.width : screen.height) + 'px'; } catch (e) {} }
   fixStandalone(); window.addEventListener('orientationchange', fixStandalone);
@@ -512,13 +528,13 @@
     var x = document.createElement('span'); x.className = 'x' + (r.kind === 'メモ' ? ' wrap' : '') + (after ? ' ed' : ''); x.textContent = r.what; list.appendChild(x);
     if (after) { x.addEventListener('click', function () { if (!busy) openEdit(r, after); }); t.addEventListener('click', function () { if (!busy) openEdit(r, after); }); } // ながれだけ：押すと［直す］の画面
     var w = document.createElement('span'); w.className = 'w'; w.textContent = r.who; list.appendChild(w);
-    var b = document.createElement('button'); b.className = 'del'; b.textContent = '消す';
+    var b = document.createElement('button'); b.className = 'del'; b.textContent = '消す'; hap(b);
     var timer = null;
     b.addEventListener('click', function () {
       if (busy) return;
       if (!b.classList.contains('sure')) {
-        b.classList.add('sure'); b.textContent = '本当に消す';
-        timer = setTimeout(function () { b.classList.remove('sure'); b.textContent = '消す'; }, 4000);
+        b.classList.add('sure'); b.textContent = '本当に消す'; hap(b);
+        timer = setTimeout(function () { b.classList.remove('sure'); b.textContent = '消す'; hap(b); }, 4000);
         return;
       }
       clearTimeout(timer);
@@ -593,7 +609,11 @@
   }
   function parseYmd(s) { var p = s.split('-'); return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])); }
   function dayList() { var a = []; for (var i = 29; i >= 0; i--) a.push(ymd(addDays(today0(), -i))); return a; }
-  function drawDT() { setT('dtDay', dayLabel(parseYmd(selDay))); setT('dtTime', selH + ':' + pad(selM)); dtBtn.classList.toggle('custom', custom); }
+  function drawDT() { setT('dtDay', dayLabel(parseYmd(selDay))); setT('dtTime', selH + ':' + pad(selM)); dtBtn.classList.toggle('custom', custom);
+    $('dDate').max = ymd(today0()); $('dDate').value = selDay; $('dTime').value = pad(selH) + ':' + pad(selM); }
+  // iPhone 標準の日時選び（11-14a）。空にされたら（リセット）今の時刻に戻す
+  $('dDate').addEventListener('change', function () { if (!this.value) { useNow(); return; } selDay = this.value; custom = true; drawDT(); });
+  $('dTime').addEventListener('change', function () { if (!this.value) { useNow(); return; } var p = this.value.split(':'); selH = Number(p[0]); selM = Number(p[1]); custom = true; drawDT(); });
   function useNow() { var d = new Date(); selDay = ymd(today0()); selH = d.getHours(); selM = d.getMinutes(); typed.value = ''; custom = false; drawDT(); }
   // ホイール
   var ITEM = 44, wD = $('wD'), wH = $('wH'), wM = $('wM'), wDays = [];
@@ -617,6 +637,14 @@
   })();
   var hapLast = 0;
   function haptic() { var t = Date.now(); if (t - hapLast < 35) return; hapLast = t; try { if (navigator.vibrate) navigator.vibrate(8); if (hapEl) hapEl.click(); } catch (e) {} }
+  // ボタンの振動（11-13b）：上の「こっそり押す」やり方は、新しい iOS では指の操作なしだと振動しなかった。
+  // そこで、見えないスイッチをボタンの上に重ねて、指が本当にスイッチを押す形にする（押したことはボタンにも伝わる）
+  function hap(b) {
+    try { if (!b || b.querySelector('input.hp')) return;
+      var i = document.createElement('input'); i.type = 'checkbox'; i.setAttribute('switch', ''); i.className = 'hp'; i.tabIndex = -1; i.setAttribute('aria-hidden', 'true');
+      b.style.position = 'relative'; // スイッチがボタンの外にはみ出さないように
+      b.appendChild(i); } catch (e) {}
+  }
   // 効果音：つけたときに「ピロン」と短く鳴らす。マナーモード（消音）のときは鳴らない（audioSession を ambient に。iOS 17 以降）
   var actx = null;
   function audioUnlock() {
@@ -642,7 +670,8 @@
   var typedDay = '';
   var TYPED_HINT = '4けた＝時刻。8けた＝月・日・時・分（30日より前の日もOK）';
   function typedHint(text, set) { var e = $('typedHint'); e.textContent = text; e.className = 'typedHint' + (set ? ' set' : ''); }
-  dtBtn.addEventListener('click', function () {
+  var USE_WHEEL = false; // 自作のホイールに戻すときは true にして、#dDate・#dTime を消す（11-14a：iPhone 標準を試している）
+  if (USE_WHEEL) dtBtn.addEventListener('click', function () {
     wDays = dayList();
     fillCol(wD, wDays.map(function (k) { return dayLabel(parseYmd(k)).replace('今日 ', '').replace('昨日 ', ''); }));
     fillCol(wH, x3(HOURS)); fillCol(wM, x3(MINS));
@@ -685,7 +714,7 @@
     return true;
   }
   typed.addEventListener('input', function () { if (/^\s*\d{3,4}\s*$/.test(typed.value) || /^\s*\d{7,8}\s*$/.test(typed.value) || /^\s*\d{1,2}:\d{2}\s*$/.test(typed.value)) applyTyped(true); else { typedDay = ''; typedHint(TYPED_HINT, false); } });
-  nowBtn.addEventListener('click', function () { useNow(); if (busy) return; refresh(); });
+  nowBtn.addEventListener('click', function () { useNow(); if (busy) return; var p = refresh(); if (p) p.then(loadGraph); }); // 予想のカードも取り直す（11-13b）
   useNow();
   function atValue() { return custom ? selDay + 'T' + pad(selH) + ':' + pad(selM) : null; }
 
@@ -696,12 +725,12 @@
     if (on) slowTimer = setTimeout(function () { say('ちょっと時間かかってます。もう少し待つと結果が出ます。押し直さんでも二重には入りません。'); }, 8000);
   }
   // 記録・削除のあと：ながれ・みよか・しゃべろの覚えている分を捨てて、裏で取り直す
-  function afterChange() { tlCache = {}; prefetchAll(); }
+  function afterChange() { tlCache = {}; $('fcCard').style.opacity = '.45'; prefetchAll(); } // 予想のカードは、取り直すまで薄くしておく（古い数字と見分けるため。11-13b）
   function record(items) {
     if (!token) { show('tokenCard', true); return; }
     if (busy) return;
     var req = { items: items, who: getWho(), at: atValue(), rid: Date.now() + '-' + Math.random().toString(36).slice(2) };
-    haptic(); audioUnlock(); // 押したときに振動。音は、つけ終わったら鳴らす（2026-11-13）
+    audioUnlock(); // 音は、つけ終わったら鳴らす（振動はボタンに重ねたスイッチで出す）
     setBusy(true); closePanels();
     say('つけてます…');
     call('apiRecord', req, function (res) {
@@ -840,14 +869,18 @@
   }
   $('eKind').addEventListener('change', drawEditKind);
   function openEdit(r, after) {
-    editing = { r: r, after: after };
     var d = new Date(r.t);
-    $('eDate').value = ymd(d); $('eTime').value = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    editing = { r: r, after: after, date: ymd(d), time: pad(d.getHours()) + ':' + pad(d.getMinutes()) };
+    $('eDate').value = editing.date; $('eTime').value = editing.time;
     $('eKind').value = r.kind; $('eAmt').value = r.amount || '';
     $('eDet').value = String(r.detail || '').split('+').join(r.kind === '離乳食' ? '、' : '+');
     $('eMemo').value = r.rawMemo || '';
     drawEditKind(); show('editBg', true);
   }
+  // iPhone の日時選びの「リセット」を押すと欄が空になるので、空になったら元の日時に戻す（11-13b）
+  [['eDate', 'date'], ['eTime', 'time']].forEach(function (p) {
+    ['change', 'blur'].forEach(function (ev) { $(p[0]).addEventListener(ev, function () { if (editing && !this.value) this.value = editing[p[1]]; }); });
+  });
   function closeEdit() { show('editBg', false); editing = null; }
   $('eCancel').addEventListener('click', closeEdit);
   $('editBg').addEventListener('click', function (e) { if (e.target === this) closeEdit(); });
@@ -858,7 +891,7 @@
     var ed = { at: $('eDate').value + 'T' + $('eTime').value.slice(0, 5), kind: k,
       amount: EUNIT[k] ? $('eAmt').value.trim() : '', unit: EUNIT[k] ? (k === r.kind && r.unit ? r.unit : EUNIT[k]) : '',
       detail: EDET[k] ? $('eDet').value.trim() : '', memo: $('eMemo').value.trim() };
-    haptic(); setBusy(true);
+    setBusy(true);
     call('apiEdit', { t: r.t, kind: r.kind, amount: r.amount, detail: r.detail, edit: ed }, function (res) {
       setBusy(false); closeEdit(); lastRec = null; afterChange(); say(res.message, false); if (after) after();
     }, function () { setBusy(false); });
@@ -869,9 +902,10 @@
   var ARROW = { up: '↗ 多そう', down: '↘ 少なそう', flat: '→ いつも通り' };
   function loadGraph() {
     if (!token) return Promise.resolve();
-    return call('apiGraph', {}, function (res) { gData = res; drawForecast(res.fc); if (curTab === 'gr') drawRhythm(); }, function () {});
+    return call('apiGraph', {}, function (res) { gData = res; drawForecast(res.fc); if (curTab === 'gr') drawRhythm(); }, function () { $('fcCard').style.opacity = ''; });
   }
   function drawForecast(fc) {
+    $('fcCard').style.opacity = '';
     var m = fc.milk, s = fc.sleep;
     setT('g-ml', m ? m.land : '–');
     var a = $('g-mlA'); a.textContent = m ? ARROW[m.trend] : ''; a.className = 'fa ' + (m ? m.trend : '');
@@ -1151,10 +1185,10 @@
     var kz = nData.kizuki;
     if (kz && kz.text && kz.t) all.push({ t: kz.t, kind: '今週の気づき', text: kz.text, kz: true });
     (nData.qa || []).forEach(function (x) {
-      all.push({ t: x.t, kind: x.who || '質問', text: x.q, me: true, wait: !x.done });
+      all.push({ t: x.t, kind: x.who || '質問', text: x.q, me: true, wait: !x.done, src: 'ask', done: x.done });
       if (x.done) all.push({ t: x.at || x.t + 1, kind: 'Claude', text: x.a, link: x.link, q: x.q, ans: true });
     });
-    (nData.maint || []).forEach(function (x) { all.push({ t: x.t, kind: (x.who ? x.who + '・' : '') + 'メンテのメモ', text: x.text, me: true, mt: true }); });
+    (nData.maint || []).forEach(function (x) { all.push({ t: x.t, kind: (x.who ? x.who + '・' : '') + 'メンテのメモ', text: x.text, me: true, mt: true, src: 'maint' }); });
     all.sort(function (a, b) { return a.t - b.t; });
     var list = ntAll ? all : all.filter(function (x) { return x.t >= cutoff; });
     show('ntMore', !ntAll && all.length > list.length);
@@ -1167,6 +1201,7 @@
       if (!firstNew && !x.me && x.t > mark) firstNew = sp || m;
       if (x.kz) kzEl = m;
       var b = document.createElement('div'); b.className = 'bb' + (x.me ? ' me' + (x.mt ? ' mt' : '') : x.t > mark ? ' new' : ''); b.textContent = x.text;
+      if (x.me && x.src) b.addEventListener('click', function () { openChatEdit(x); }); // 自分が送ったものは、押すと直す・消すが出る（11-14a）
       if (x.link) { var a = document.createElement('a'); a.href = x.link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '開く ↗'; b.appendChild(a); }
       if (x.ans) {
         // Claude のアプリ（または claude.ai）で、この質問と返事を持って新しいチャットを開く。長いと入りきらないことがあるので、コピーもしておく
@@ -1189,6 +1224,35 @@
     return kzEl;
   }
   $('ntMore').addEventListener('click', function () { ntAll = true; drawNotices(); });
+  // ===== 自分が送った質問・メンテのメモを直す／消す（11-14a） =====
+  var cEditing = null, cDelTimer = null;
+  function openChatEdit(x) {
+    cEditing = x;
+    var canEdit = x.src === 'maint' || !x.done;
+    $('cText').value = x.text; $('cText').disabled = !canEdit; show('cOk', canEdit);
+    setT('cHint', x.src === 'maint' ? 'メンテのメモを直せます' : canEdit ? '返事が来る前なら直せます' : '返事が届いているので直せません。消すと、返事も一緒に消えます');
+    clearTimeout(cDelTimer); setT('cDelT', '消す'); $('cDel').classList.remove('sure');
+    show('cEditBg', true);
+  }
+  function closeChatEdit() { show('cEditBg', false); cEditing = null; }
+  function sendChatEdit(act) {
+    var x = cEditing; if (!x || busy) return;
+    var req = { sheet: x.src, t: x.t, text: x.text, act: act, newText: $('cText').value.trim() };
+    if (act === 'edit' && !req.newText) { say('文が空です。'); return; }
+    setBusy(true);
+    call('apiAskEdit', req, function (res) {
+      setBusy(false); closeChatEdit();
+      if (nData) { if (res.qa) nData.qa = res.qa; if (res.maint) nData.maint = res.maint; drawNotices(); }
+      say(res.message, false);
+    }, function () { setBusy(false); });
+  }
+  $('cCancel').addEventListener('click', closeChatEdit);
+  $('cEditBg').addEventListener('click', function (e) { if (e.target === this) closeChatEdit(); });
+  $('cOk').addEventListener('click', function () { sendChatEdit('edit'); });
+  $('cDel').addEventListener('click', function () {
+    if (!this.classList.contains('sure')) { var b = this; b.classList.add('sure'); setT('cDelT', '本当に消す'); cDelTimer = setTimeout(function () { b.classList.remove('sure'); setT('cDelT', '消す'); }, 4000); return; }
+    clearTimeout(cDelTimer); sendChatEdit('delete');
+  });
   // 「今週の気づき」ボタン：もう読み込んである気づきを出すだけ（通信はしない）。吹き出しがあればそこまで動かす
   $('kzBtn').addEventListener('click', function () {
     var kz = nData && nData.kizuki;
@@ -1268,9 +1332,10 @@
     preBusy = true;
     fetchDay(ymd(today0())).then(loadGraph).then(loadStats).then(loadNotices).then(loadLinks).then(function () { preBusy = false; if (preAgain) { preAgain = false; prefetchAll(); } });
   }
+  document.querySelectorAll('#kinds button, .panel button, #eOk, #wOk, #chatGo, #undo, #cOk, #cDel').forEach(hap);
   setT('topSub', greet());
   refresh(function () { prefetchAll(); });
-  setInterval(function () { if (busy) return; refresh(); if (curTab === 'gr') loadGraph().then(loadStats); if (curTab === 'ai') loadNotices(); }, 120000);
+  setInterval(function () { if (busy) return; refresh(); if (curTab === 'gr') loadGraph().then(loadStats); if (curTab === 'rec') loadGraph(); if (curTab === 'ai') loadNotices(); }, 120000); // つけとこの予想も2分おきに取り直す（もう1台で入れた記録が予想に出なかったため。11-13b）
   if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
 </script>
 </body></html>
