@@ -225,6 +225,13 @@
   #msg { font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
   #msgCard { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 18; margin: 0; box-shadow: 0 6px 24px rgba(0,0,0,.18); max-height: 60vh; overflow-y: auto; }
   #tokenCard { margin-bottom: 7px; }
+  /* ながれの［直す］（2026-11-13） */
+  .ri .x.ed { cursor: pointer; }
+  .ri .x.ed::after { content: ' ✎'; color: #b7b3d6; font-size: 12px; }
+  #editBg .row { margin-top: 8px; }
+  #editBg .row > span.lb { width: 3.2em; color: #666; flex: none; }
+  #editBg input[type=date], #editBg input[type=time], #editBg select { font-size: 16px; padding: 7px 8px; }
+  #editBg input.wide2 { flex: 1; min-width: 0; }
 </style></head>
 <body>
   <div class="card" id="tokenCard" hidden>
@@ -427,6 +434,19 @@
     </div>
   </div>
 
+  <!-- ながれの［直す］：1件の記録の日時・種類・量・詳細・メモを直す（2026-11-13） -->
+  <div class="sheetBg" id="editBg" hidden>
+    <div class="sheet">
+      <div class="sheetHead"><button id="eCancel">キャンセル</button><b>記録を直す</b><button id="eOk" class="ok">直す</button></div>
+      <div class="row"><span class="lb">日時</span><input type="date" id="eDate"><input type="time" id="eTime"></div>
+      <div class="row"><span class="lb">種類</span><select id="eKind"></select></div>
+      <div class="row" id="eAmtRow"><span class="lb">量</span><input type="number" id="eAmt" step="any" inputmode="decimal"><span id="eUnit"></span></div>
+      <div class="row" id="eDetRow"><span class="lb">詳細</span><input id="eDet" class="wide2" placeholder="例：おかゆ、豆腐"></div>
+      <div class="row"><span class="lb">メモ</span><input id="eMemo" class="wide2" placeholder="なければ空"></div>
+      <div class="hint">入れた人は変わりません。離乳食の詳細は「、」で区切ってください</div>
+    </div>
+  </div>
+
   <div class="card" id="msgCard" hidden>
     <div id="msg"></div>
     <div class="row">
@@ -436,7 +456,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-11e';
+  var VERSION = '2026-11-13a';
   // iPhone のホーム画面アプリだけ：ページを画面の高さ（screen.height）以上にして、下のタブが浮くのを防ぐ。向きを変えたときも合わせ直す
   function fixStandalone() { try { if (navigator.standalone === true) document.body.style.minHeight = (Math.abs(window.orientation) === 90 ? screen.width : screen.height) + 'px'; } catch (e) {} }
   fixStandalone(); window.addEventListener('orientationchange', fixStandalone);
@@ -489,7 +509,8 @@
   function addRow(list, r, timeText, after) {
     var t = document.createElement('span'); t.className = 't'; t.textContent = timeText; list.appendChild(t);
     var ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = ICON[r.kind] || '・'; list.appendChild(ic);
-    var x = document.createElement('span'); x.className = 'x' + (r.kind === 'メモ' ? ' wrap' : ''); x.textContent = r.what; list.appendChild(x);
+    var x = document.createElement('span'); x.className = 'x' + (r.kind === 'メモ' ? ' wrap' : '') + (after ? ' ed' : ''); x.textContent = r.what; list.appendChild(x);
+    if (after) { x.addEventListener('click', function () { if (!busy) openEdit(r, after); }); t.addEventListener('click', function () { if (!busy) openEdit(r, after); }); } // ながれだけ：押すと［直す］の画面
     var w = document.createElement('span'); w.className = 'w'; w.textContent = r.who; list.appendChild(w);
     var b = document.createElement('button'); b.className = 'del'; b.textContent = '消す';
     var timer = null;
@@ -580,10 +601,43 @@
     col.innerHTML = '';
     labels.forEach(function (t, i) { var e = document.createElement('div'); e.textContent = t; e.addEventListener('click', function () { col.scrollTop = i * ITEM; }); col.appendChild(e); });
   }
-  function colIndex(col, n) { return Math.max(0, Math.min(n - 1, Math.round(col.scrollTop / ITEM))); }
+  // loop＝時・分の列：中身を3回くり返して並べ、止まったら真ん中の組に戻す（23→0、59→00 とぐるっと回る。2026-11-13 ママの要望）
+  function colIndex(col, n, loop) { var i = Math.round(col.scrollTop / ITEM); return loop ? ((i % n) + n) % n : Math.max(0, Math.min(n - 1, i)); }
   var HOURS = [], MINS = [];
   for (var hh = 0; hh < 24; hh++) HOURS.push(String(hh));
   for (var mm = 0; mm < 60; mm++) MINS.push(pad(mm));
+  function x3(a) { return a.concat(a, a); }
+  function setLoop(col, n, v) { col.scrollTop = (n + v) * ITEM; }
+  // ===== 手ざわり（2026-11-13）=====
+  // 振動：iPhone のウェブアプリには振動の正式なしくみがないので、iOS 18 からの「スイッチの部品を押すと軽く振動する」を隠して使う。
+  //       ほかの端末では何も起きない（Android は navigator.vibrate）
+  var hapEl = (function () {
+    try { var l = document.createElement('label'), i = document.createElement('input'); i.type = 'checkbox'; i.setAttribute('switch', ''); l.appendChild(i);
+      l.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none'; document.body.appendChild(l); return l; } catch (e) { return null; }
+  })();
+  var hapLast = 0;
+  function haptic() { var t = Date.now(); if (t - hapLast < 35) return; hapLast = t; try { if (navigator.vibrate) navigator.vibrate(8); if (hapEl) hapEl.click(); } catch (e) {} }
+  // 効果音：つけたときに「ピロン」と短く鳴らす。マナーモード（消音）のときは鳴らない（audioSession を ambient に。iOS 17 以降）
+  var actx = null;
+  function audioUnlock() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'ambient';
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) {}
+  }
+  function chime() {
+    try { if (!actx) return; var t0 = actx.currentTime;
+      [880, 1320].forEach(function (f, i) { var o = actx.createOscillator(), g = actx.createGain(), s = t0 + i * 0.09;
+        o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, s); g.gain.exponentialRampToValueAtTime(0.16, s + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, s + 0.16);
+        o.connect(g); g.connect(actx.destination); o.start(s); o.stop(s + 0.18); }); } catch (e) {}
+  }
+  // ホイールが1目盛り動くたびに振動。時・分は止まったら真ん中の組に戻す
+  [[null, 0], [null, 24], [null, 60]].forEach(function (c, k) {
+    var col = [wD, wH, wM][k], n = c[1], lastI = -1, tm = null;
+    col.addEventListener('scroll', function () {
+      var i = Math.round(col.scrollTop / ITEM);
+      if (i !== lastI) { if (lastI >= 0 && !$('wheelBg').hidden) haptic(); lastI = i; }
+      if (n) { clearTimeout(tm); tm = setTimeout(function () { var j = Math.round(col.scrollTop / ITEM); if (j < n || j >= 2 * n) { lastI = n + ((j % n) + n) % n; col.scrollTop = lastI * ITEM; } }, 150); }
+    }, { passive: true });
+  });
   // 数字8けた（月日時分）で打った日。ホイールにない日（30日より前）も選べるように、ホイールとは別に持つ（2026-11-11 夕）
   var typedDay = '';
   var TYPED_HINT = '4けた＝時刻。8けた＝月・日・時・分（30日より前の日もOK）';
@@ -591,11 +645,11 @@
   dtBtn.addEventListener('click', function () {
     wDays = dayList();
     fillCol(wD, wDays.map(function (k) { return dayLabel(parseYmd(k)).replace('今日 ', '').replace('昨日 ', ''); }));
-    fillCol(wH, HOURS); fillCol(wM, MINS);
+    fillCol(wH, x3(HOURS)); fillCol(wM, x3(MINS));
     typed.value = ''; typedDay = ''; typedHint(TYPED_HINT, false);
     show('wheelBg', true);
     var di = wDays.indexOf(selDay);
-    wD.scrollTop = (di < 0 ? wDays.length - 1 : di) * ITEM; wH.scrollTop = selH * ITEM; wM.scrollTop = selM * ITEM;
+    wD.scrollTop = (di < 0 ? wDays.length - 1 : di) * ITEM; setLoop(wH, 24, selH); setLoop(wM, 60, selM);
   });
   $('wCancel').addEventListener('click', function () { show('wheelBg', false); });
   $('wheelBg').addEventListener('click', function (e) { if (e.target === this) show('wheelBg', false); });
@@ -603,7 +657,7 @@
     if (typed.value.trim() && !applyTyped(false)) return;
     // 8けたで打った日がホイールにない（30日より前）ときは、打った日をそのまま使う
     selDay = typedDay && wDays.indexOf(typedDay) < 0 ? typedDay : wDays[colIndex(wD, wDays.length)];
-    selH = colIndex(wH, 24); selM = colIndex(wM, 60);
+    selH = colIndex(wH, 24, true); selM = colIndex(wM, 60, true);
     show('wheelBg', false); custom = true; drawDT();
   });
   // 数字で打つ：「2130」「930」「21:30」→ 時刻だけ。「08191200」「8191200」→ 8月19日 12:00（先の日になるときは去年）。ホイールを動かす（決定で確定）
@@ -620,14 +674,14 @@
       typedDay = ymd(d);
       var di = wDays.indexOf(typedDay);
       if (di >= 0) wD.scrollTop = di * ITEM;
-      wH.scrollTop = h8 * ITEM; wM.scrollTop = mi8 * ITEM;
+      setLoop(wH, 24, h8); setLoop(wM, 60, mi8);
       typedHint(d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日(' + WD[d.getDay()] + ') ' + h8 + ':' + pad(mi8) + ' にします（決定で確定）', true);
       return true;
     }
     typedHint(TYPED_HINT, false);
     var m = s.match(/^(\d{1,2}):?(\d{2})$/);
     if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) { if (!quiet) say('時刻は「2130」や「930」、日付もいっしょなら「08191200」のように打ってください。'); return false; }
-    wH.scrollTop = Number(m[1]) * ITEM; wM.scrollTop = Number(m[2]) * ITEM;
+    setLoop(wH, 24, Number(m[1])); setLoop(wM, 60, Number(m[2]));
     return true;
   }
   typed.addEventListener('input', function () { if (/^\s*\d{3,4}\s*$/.test(typed.value) || /^\s*\d{7,8}\s*$/.test(typed.value) || /^\s*\d{1,2}:\d{2}\s*$/.test(typed.value)) applyTyped(true); else { typedDay = ''; typedHint(TYPED_HINT, false); } });
@@ -647,11 +701,13 @@
     if (!token) { show('tokenCard', true); return; }
     if (busy) return;
     var req = { items: items, who: getWho(), at: atValue(), rid: Date.now() + '-' + Math.random().toString(36).slice(2) };
+    haptic(); audioUnlock(); // 押したときに振動。音は、つけ終わったら鳴らす（2026-11-13）
     setBusy(true); closePanels();
     say('つけてます…');
     call('apiRecord', req, function (res) {
       setBusy(false);
       lastRec = res.dup ? null : { rows: res.rows, kinds: res.kinds };
+      if (!res.dup) chime();
       afterChange();
       say(res.message, !res.dup);
       useNow();
@@ -769,6 +825,44 @@
   }
   $('tlPrev').addEventListener('click', function () { tlDay = addDays(tlDay, -1); loadDay(); });
   $('tlNext').addEventListener('click', function () { if (tlDay < today0()) { tlDay = addDays(tlDay, 1); loadDay(); } });
+
+  // ===== ながれの［直す］（2026-11-13）：記録を押すと、日時・種類・量・詳細・メモを直す画面が出る =====
+  var EKINDS = ['ミルク', '母乳', '離乳食', '寝た', '起きた', 'おしっこ', 'うんち', 'お風呂', '体重', '身長', '頭囲', 'メモ'];
+  var EUNIT = { 'ミルク': 'ml', '母乳': '分', '離乳食': 'g', '体重': 'kg', '身長': 'cm', '頭囲': 'cm' };
+  var EDET = { '母乳': '左・右・左右', '離乳食': '例：おかゆ、豆腐', 'うんち': 'ふつう・やわらかめ・かため' };
+  var editing = null;
+  EKINDS.forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = k; $('eKind').appendChild(o); });
+  function drawEditKind() {
+    var k = $('eKind').value, same = editing && k === editing.r.kind;
+    show('eAmtRow', !!EUNIT[k]); show('eDetRow', !!EDET[k]);
+    setT('eUnit', same && editing.r.unit ? editing.r.unit : (EUNIT[k] || ''));
+    $('eDet').placeholder = EDET[k] || '';
+  }
+  $('eKind').addEventListener('change', drawEditKind);
+  function openEdit(r, after) {
+    editing = { r: r, after: after };
+    var d = new Date(r.t);
+    $('eDate').value = ymd(d); $('eTime').value = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    $('eKind').value = r.kind; $('eAmt').value = r.amount || '';
+    $('eDet').value = String(r.detail || '').split('+').join(r.kind === '離乳食' ? '、' : '+');
+    $('eMemo').value = r.rawMemo || '';
+    drawEditKind(); show('editBg', true);
+  }
+  function closeEdit() { show('editBg', false); editing = null; }
+  $('eCancel').addEventListener('click', closeEdit);
+  $('editBg').addEventListener('click', function (e) { if (e.target === this) closeEdit(); });
+  $('eOk').addEventListener('click', function () {
+    if (!editing || busy) return;
+    var r = editing.r, after = editing.after, k = $('eKind').value;
+    if (!$('eDate').value || !$('eTime').value) { say('日時を入れてください。'); return; }
+    var ed = { at: $('eDate').value + 'T' + $('eTime').value.slice(0, 5), kind: k,
+      amount: EUNIT[k] ? $('eAmt').value.trim() : '', unit: EUNIT[k] ? (k === r.kind && r.unit ? r.unit : EUNIT[k]) : '',
+      detail: EDET[k] ? $('eDet').value.trim() : '', memo: $('eMemo').value.trim() };
+    haptic(); setBusy(true);
+    call('apiEdit', { t: r.t, kind: r.kind, amount: r.amount, detail: r.detail, edit: ed }, function (res) {
+      setBusy(false); closeEdit(); lastRec = null; afterChange(); say(res.message, false); if (after) after();
+    }, function () { setBusy(false); });
+  });
 
   // ===== みよか：予想（つけとこの下）と1日のリズム =====
   var gData = null, rhMode = 'all';
