@@ -485,7 +485,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-15c';
+  var VERSION = '2026-11-15d';
   // iPhone のホーム画面アプリだけ：ページを画面の高さ（screen.height）以上にして、下のタブが浮くのを防ぐ。向きを変えたときも合わせ直す
   function fixStandalone() { try { if (navigator.standalone === true) document.body.style.minHeight = (Math.abs(window.orientation) === 90 ? screen.width : screen.height) + 'px'; } catch (e) {} }
   fixStandalone(); window.addEventListener('orientationchange', fixStandalone);
@@ -1243,7 +1243,8 @@
     if (!mtView && kz && kz.text && kz.t) all.push({ t: kz.t, kind: '今週の気づき', text: kz.text, kz: true });
     if (!mtView) (nData.qa || []).forEach(function (x) {
       all.push({ t: x.t, kind: x.who || '質問', text: x.q, me: true, wait: !x.done, src: 'ask', done: x.done });
-      if (x.done) all.push({ t: x.at || x.t + 1, kind: 'Claude', text: x.a, link: x.link, q: x.q, ans: true, fresh: !seenQaOpen[x.t] });
+      // 返事は、かならず質問のすぐ下に出す（返事の時刻は分までなので、同じ分に届くと質問より上に並んだ。11-15d）
+      if (x.done) all.push({ t: Math.max(x.at || 0, x.t + 1), kind: 'Claude', text: x.a, link: x.link, q: x.q, ans: true, fresh: !seenQaOpen[x.t] });
     });
     if (mtView) (nData.maint || []).forEach(function (x) { all.push({ t: x.t, kind: (x.who ? x.who + '・' : '') + 'こうしてや', text: x.text, me: true, mt: true, src: 'maint', state: x.state }); });
     all.sort(function (a, b) { return a.t - b.t; });
