@@ -485,7 +485,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-15b';
+  var VERSION = '2026-11-15c';
   // iPhone のホーム画面アプリだけ：ページを画面の高さ（screen.height）以上にして、下のタブが浮くのを防ぐ。向きを変えたときも合わせ直す
   function fixStandalone() { try { if (navigator.standalone === true) document.body.style.minHeight = (Math.abs(window.orientation) === 90 ? screen.width : screen.height) + 'px'; } catch (e) {} }
   fixStandalone(); window.addEventListener('orientationchange', fixStandalone);
@@ -823,7 +823,7 @@
     if (name === 'ta') { drawStock(); drawLinks(); loadStock().then(loadLinks); }
     if (name === 'ai') {
       // 開いたとき：まだ読んでいない一番古い吹き出しまで動かす（全部読んでいれば一番下）。読み込みが終わるまでの描き直しも同じ場所へ
-      seenOpen = seen; ntAll = false; aiJump = true;
+      seenOpen = seen; seenQaOpen = seenQa || {}; ntAll = false; aiJump = true;
       if (nData) drawNotices();
       loadNotices().then(function () { aiJump = false; });
     }
@@ -1172,11 +1172,21 @@
   var seen = Number(store('ikuji_seen') || 0);
   // seenOpen＝しゃべろを開いた時点の「ここまで読んだ」。開いている間は、これより新しい吹き出しを薄紫（未読）のままにする
   var seenOpen = seen, aiJump = false;
+  // 返事の未読は、時刻ではなく「どの質問の返事を見たか」で覚える（11-15c）。返事の時刻は分までしかなく、質問した直後（同じ分）に届いた返事が
+  // 「もう読んだ」扱いになって、しゃべろの印が付かなかった（11/15 20:54 の件）。seenQa＝返事を見た質問の日時（ミリ秒）の一覧
+  var seenQa = null, seenQaOpen = {};
+  try { seenQa = JSON.parse(store('ikuji_seenqa') || 'null'); } catch (e) {}
+  function qaUnread(x) { return x.done && seenQa && !seenQa[x.t]; }
+  function markQaSeen() {
+    if (!nData) return; var m = {};
+    (nData.qa || []).forEach(function (x) { if (x.done) m[x.t] = 1; });
+    seenQa = m; store('ikuji_seenqa', JSON.stringify(m));
+  }
   function unreadCount() {
     var n = checksData.length;
     if (nData) {
       nData.notices.forEach(function (x) { if (x.t > seen) n++; });
-      (nData.qa || []).forEach(function (x) { if (x.done && x.at > seen) n++; });
+      (nData.qa || []).forEach(function (x) { if (qaUnread(x)) n++; });
       if (nData.kizuki && nData.kizuki.t > seen) n++;
     }
     return n;
@@ -1184,7 +1194,9 @@
   function drawBadge() { var n = unreadCount(); $('aiBadge').textContent = n; show('aiBadge', n > 0 && curTab !== 'ai'); }
   function loadNotices() {
     if (!token) return Promise.resolve();
-    return call('apiNotices', {}, function (res) { nData = res; checksData = res.checks || []; if (curTab === 'ai') drawNotices(); drawBadge(); }, function () { if (!nData && $('ntLoad')) setT('ntLoad', '読み込めませんでした。'); });
+    return call('apiNotices', {}, function (res) { nData = res; checksData = res.checks || [];
+      // はじめて（覚えがない）のとき：今までの決まり（返事の時刻が「読んだ時刻」より前）で読んだことにしておく
+      if (!seenQa) { seenQa = {}; (res.qa || []).forEach(function (x) { if (x.done && x.at <= seen) seenQa[x.t] = 1; }); store('ikuji_seenqa', JSON.stringify(seenQa)); } if (curTab === 'ai') drawNotices(); drawBadge(); }, function () { if (!nData && $('ntLoad')) setT('ntLoad', '読み込めませんでした。'); });
   }
   var ntAll = false;
   // 返り値：今週の気づきの吹き出し（あれば）。「今週の気づき」ボタンがそこまで動かすのに使う
@@ -1231,7 +1243,7 @@
     if (!mtView && kz && kz.text && kz.t) all.push({ t: kz.t, kind: '今週の気づき', text: kz.text, kz: true });
     if (!mtView) (nData.qa || []).forEach(function (x) {
       all.push({ t: x.t, kind: x.who || '質問', text: x.q, me: true, wait: !x.done, src: 'ask', done: x.done });
-      if (x.done) all.push({ t: x.at || x.t + 1, kind: 'Claude', text: x.a, link: x.link, q: x.q, ans: true });
+      if (x.done) all.push({ t: x.at || x.t + 1, kind: 'Claude', text: x.a, link: x.link, q: x.q, ans: true, fresh: !seenQaOpen[x.t] });
     });
     if (mtView) (nData.maint || []).forEach(function (x) { all.push({ t: x.t, kind: (x.who ? x.who + '・' : '') + 'こうしてや', text: x.text, me: true, mt: true, src: 'maint', state: x.state }); });
     all.sort(function (a, b) { return a.t - b.t; });
@@ -1244,9 +1256,10 @@
       var m = document.createElement('div'); m.className = 'bm'; m.innerHTML = '<b></b>'; m.querySelector('b').textContent = x.kind || 'お知らせ'; m.appendChild(document.createTextNode(hm(x.t))); box.appendChild(m);
       if (x.wait) m.appendChild(document.createTextNode('　返事待ち'));
       if (x.mt && x.state) m.appendChild(document.createTextNode('　' + x.state));
-      if (!firstNew && !x.me && x.t > mark) firstNew = sp || m;
+      var isNew = !x.me && (x.ans ? x.fresh : x.t > mark);
+      if (!firstNew && isNew) firstNew = sp || m;
       if (x.kz) kzEl = m;
-      var b = document.createElement('div'); b.className = 'bb' + (x.me ? ' me' + (x.mt ? ' mt' : '') : x.t > mark ? ' new' : ''); b.textContent = x.text;
+      var b = document.createElement('div'); b.className = 'bb' + (x.me ? ' me' + (x.mt ? ' mt' : '') : isNew ? ' new' : ''); b.textContent = x.text;
       if (x.me && x.src) b.addEventListener('click', function () { openChatEdit(x); }); // 自分が送ったものは、押すと直す・消すが出る（11-14a）
       if (x.link) { var a = document.createElement('a'); a.href = x.link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '開く ↗'; b.appendChild(a); }
       if (x.ans) {
@@ -1262,7 +1275,9 @@
       var wrap = document.createElement('div'); if (x.me) { wrap.className = 'rt'; m.style.textAlign = 'right'; } wrap.appendChild(b); box.appendChild(wrap);
     });
     if (!list.length) { var e = document.createElement('div'); e.className = 'dsep'; e.textContent = mtView ? 'メモはまだないで。直したいこと・ほしい機能を書いてな。' : '今日と昨日のお知らせはないで。朝のひとこと、離乳食のクリア、質問の返事がここに出ます。'; box.appendChild(e); }
-    seen = nData.now || Date.now(); store('ikuji_seen', seen); drawBadge();
+    // 読んだことにするのは、しゃべろを開いていて、お知らせ・返事を見せているときだけ（「こうしてや」を見ている間は読んだことにしない。11-15c）
+    if (curTab === 'ai' && !mtView) { seen = nData.now || Date.now(); store('ikuji_seen', seen); markQaSeen(); }
+    drawBadge();
     // 開いた直後だけ：まだ読んでいない一番古い吹き出しを上に。全部読んでいれば一番下（最新）へ
     var sc = $('chatScroll');
     if (aiJump) sc.scrollTop = firstNew ? Math.max(0, firstNew.offsetTop - 4) : sc.scrollHeight;
