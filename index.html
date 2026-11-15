@@ -357,6 +357,7 @@
       <div class="fgrp">あと1回でクリア</div><div id="fd-one"></div>
       <div class="fgrp" id="fd-guideL">1回の量の目安</div><div class="gd" id="fd-guide"></div><div class="hint" id="fd-note"></div>
       <div class="fgrp">最近の献立</div><div id="m-meals"></div>
+      <div id="fd-exBox" hidden><div class="fgrp">表のほかに食べたもの（クリアの数には入りません）</div><div id="fd-extra"></div></div>
       <details class="fall"><summary id="fd-allL">全部の食材</summary><div id="fd-all"></div><div class="hint">★は保育園が家で試してほしい食材。2回食べたらクリア（緑）。枠だけは1回</div></details>
     </div>
   </div>
@@ -366,7 +367,7 @@
     <div id="chkBox"></div>
     <div class="chatBox" id="chatScroll"><button class="more" id="ntMore" hidden>前のお知らせを見る</button><div id="ntBox"><div class="card" id="ntLoad">読み込み中…</div></div></div>
     <div class="chat">
-      <div class="ch"><div class="seg" id="askMode"><button data-m="ask" class="on">Claude に聞く</button><button data-m="maint">メンテのメモ</button></div><span id="askHint">返事は毎時53分ごろ</span></div>
+      <div class="ch"><div class="seg" id="askMode"><button data-m="ask" class="on">Claude に聞く</button><button data-m="maint">こうしてや</button></div><span id="askHint">返事は毎時53分ごろ</span></div>
       <textarea id="chatIn" placeholder="例：先週より夜寝てる？"></textarea>
       <div class="cq"><button data-q="先週とくらべて、夜の睡眠はどう？">夜の睡眠</button><button data-q="この1週間のミルクと母乳の様子を教えて">ミルク</button><button id="kzBtn">今週の気づき</button><button class="on" id="chatGo" style="margin-left:auto;padding:7px 16px">送る</button></div>
     </div>
@@ -472,7 +473,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-14a';
+  var VERSION = '2026-11-15a';
   // iPhone のホーム画面アプリだけ：ページを画面の高さ（screen.height）以上にして、下のタブが浮くのを防ぐ。向きを変えたときも合わせ直す
   function fixStandalone() { try { if (navigator.standalone === true) document.body.style.minHeight = (Math.abs(window.orientation) === 90 ? screen.width : screen.height) + 'px'; } catch (e) {} }
   fixStandalone(); window.addEventListener('orientationchange', fixStandalone);
@@ -787,7 +788,13 @@
     $('memoIn').value = ''; record([{ kind: 'メモ', memo: t }]);
   });
   $('closeMsg').addEventListener('click', function () { show('msgCard', false); });
-  $('undo').addEventListener('click', function () { if (!lastRec) return; call('apiUndo', lastRec, function (res) { lastRec = null; afterChange(); say(res.message, false); }); });
+  // 取り消す：1回押したらすぐボタンを消す（2回押すと、2回目が「取り消せませんでした」になったため。11-15a）
+  $('undo').addEventListener('click', function () {
+    if (!lastRec || busy) return;
+    var lr = lastRec; lastRec = null;
+    setBusy(true); say('取り消してます…', false);
+    call('apiUndo', lr, function (res) { setBusy(false); afterChange(); say(res.message, false); }, function () { setBusy(false); });
+  });
 
   // ===== 画面の切り替え（下のタブ・横スワイプ） =====
   var TABS = { rec: ['tabRec', 'viewRec', 'つけとこ'], tl: ['tabTl', 'viewTl', 'ながれ'], gr: ['tabGr', 'viewGr', 'みよか'], ai: ['tabAi', 'viewAi', 'しゃべろ'], ta: ['tabTa', 'viewTa', 'たよろか'] };
@@ -1127,12 +1134,17 @@
     f.meals.forEach(function (m) { var e = document.createElement('div'); e.className = 'meal'; e.style.fontSize = '12px'; e.textContent = m.at + '　' + m.detail; ml.appendChild(e); });
     setT('fd-allL', '全部の食材（クリア ' + f.cleared + '/' + f.total + '・★ ' + f.starDone + '/' + f.starTotal + '）');
     chips($('fd-all'), f.all || f.remaining);
+    // 表のほかに食べたもの：後期の表でもう食べたもの（✓＝2回）と、表にない食材（回数）。11-15a
+    var ex = $('fd-extra'); ex.innerHTML = '';
+    (f.lateAte || []).forEach(function (x) { var s = document.createElement('span'); s.className = 'chip' + (x.n >= 2 ? ' done' : ' one'); s.textContent = (x.n >= 2 ? '✓ ' : '') + x.food + '（後期・' + x.n + '回）'; ex.appendChild(s); });
+    (f.extra || []).forEach(function (x) { var s = document.createElement('span'); s.className = 'chip'; s.textContent = x.food + '（' + x.n + '回）'; ex.appendChild(s); });
+    show('fd-exBox', !!ex.firstChild);
   }
   document.querySelectorAll('#gwSeg button').forEach(function (b) { b.addEventListener('click', function () { gwMode = b.getAttribute('data-g'); segOn('gwSeg', b); drawStats(); }); });
   window.addEventListener('resize', function () { if (curTab === 'gr') { drawRhythm(); drawStats(); } });
 
   // ===== しゃべろ：上に記録の確認（固定）、まん中に吹き出し（気づき・ひとこと・離乳食クリア・質問と返事・メンテのメモ）、下に Claude に聞く（固定） =====
-  var nData = null, checksData = [];
+  var nData = null, checksData = [], askMode = 'ask';
   var seen = Number(store('ikuji_seen') || 0);
   // seenOpen＝しゃべろを開いた時点の「ここまで読んだ」。開いている間は、これより新しい吹き出しを薄紫（未読）のままにする
   var seenOpen = seen, aiJump = false;
@@ -1169,9 +1181,16 @@
       var r = document.createElement('div'); r.className = 'row';
       [['fix', c.to === '（削除）' ? '消す' : '直す'], ['keep', 'そのまま']].forEach(function (a) {
         var b = document.createElement('button'); b.className = 'small' + (a[0] === 'fix' ? ' fix' : ''); b.textContent = a[1];
+        hap(b);
         b.addEventListener('click', function () {
-          if (busy) return; setBusy(true);
-          call('apiCheck', { row: c.row, act: a[0], who: getWho() }, function (res) { setBusy(false); say(res.message, false); afterChange(); }, function () { setBusy(false); });
+          if (busy) return;
+          // 押したらすぐこのカードを消して、次の確認を出す（返事を待つ間、押せたか分からなかったため。11-15a）。失敗したら戻す
+          var keep = checksData.slice();
+          checksData = checksData.filter(function (y) { return y !== c; });
+          drawNotices(); drawBadge();
+          setBusy(true); say(a[0] === 'fix' ? (c.to === '（削除）' ? '消してます…' : '直してます…') : 'そのままにしてます…', false);
+          call('apiCheck', { row: c.row, act: a[0], who: getWho() }, function (res) { setBusy(false); say(res.message, false); if (curTab === 'ai') drawNotices(); afterChange(); },
+            function () { setBusy(false); checksData = keep; if (curTab === 'ai') drawNotices(); drawBadge(); });
         });
         r.appendChild(b);
       });
@@ -1180,17 +1199,19 @@
     // まん中：チャットの吹き出し。古い順に上から、新しいものが下。今日と昨日だけ（前の分は「前のお知らせを見る」）
     var box = $('ntBox'); box.innerHTML = '';
     var cutoff = addDays(today0(), -1).getTime();
-    var all = nData.notices.slice();
+    // 見せる吹き出しは下の切り替えで変わる（11-15a）：「Claude に聞く」＝お知らせ・気づき・質問と返事／「こうしてや」＝そのメモだけ
+    var mtView = askMode === 'maint';
+    var all = mtView ? [] : nData.notices.slice();
     // 今週の気づきも吹き出しの1つ（書いた日時の場所に出る。日時が分からないときは流さず、ボタンからだけ見られる）
     var kz = nData.kizuki;
-    if (kz && kz.text && kz.t) all.push({ t: kz.t, kind: '今週の気づき', text: kz.text, kz: true });
-    (nData.qa || []).forEach(function (x) {
+    if (!mtView && kz && kz.text && kz.t) all.push({ t: kz.t, kind: '今週の気づき', text: kz.text, kz: true });
+    if (!mtView) (nData.qa || []).forEach(function (x) {
       all.push({ t: x.t, kind: x.who || '質問', text: x.q, me: true, wait: !x.done, src: 'ask', done: x.done });
       if (x.done) all.push({ t: x.at || x.t + 1, kind: 'Claude', text: x.a, link: x.link, q: x.q, ans: true });
     });
-    (nData.maint || []).forEach(function (x) { all.push({ t: x.t, kind: (x.who ? x.who + '・' : '') + 'メンテのメモ', text: x.text, me: true, mt: true, src: 'maint' }); });
+    if (mtView) (nData.maint || []).forEach(function (x) { all.push({ t: x.t, kind: (x.who ? x.who + '・' : '') + 'こうしてや', text: x.text, me: true, mt: true, src: 'maint', state: x.state }); });
     all.sort(function (a, b) { return a.t - b.t; });
-    var list = ntAll ? all : all.filter(function (x) { return x.t >= cutoff; });
+    var list = ntAll || mtView ? all : all.filter(function (x) { return x.t >= cutoff; }); // メモは古いものも全部見せる（直ったかを見るため）
     show('ntMore', !ntAll && all.length > list.length);
     var lastDay = '', firstNew = null, kzEl = null;
     list.forEach(function (x) {
@@ -1198,6 +1219,7 @@
       if (dk !== lastDay) { sp = document.createElement('div'); sp.className = 'dsep'; sp.textContent = dk; box.appendChild(sp); lastDay = dk; }
       var m = document.createElement('div'); m.className = 'bm'; m.innerHTML = '<b></b>'; m.querySelector('b').textContent = x.kind || 'お知らせ'; m.appendChild(document.createTextNode(hm(x.t))); box.appendChild(m);
       if (x.wait) m.appendChild(document.createTextNode('　返事待ち'));
+      if (x.mt && x.state) m.appendChild(document.createTextNode('　' + x.state));
       if (!firstNew && !x.me && x.t > mark) firstNew = sp || m;
       if (x.kz) kzEl = m;
       var b = document.createElement('div'); b.className = 'bb' + (x.me ? ' me' + (x.mt ? ' mt' : '') : x.t > mark ? ' new' : ''); b.textContent = x.text;
@@ -1215,7 +1237,7 @@
       }
       var wrap = document.createElement('div'); if (x.me) { wrap.className = 'rt'; m.style.textAlign = 'right'; } wrap.appendChild(b); box.appendChild(wrap);
     });
-    if (!list.length) { var e = document.createElement('div'); e.className = 'dsep'; e.textContent = '今日と昨日のお知らせはないで。朝のひとこと、離乳食のクリア、質問の返事がここに出ます。'; box.appendChild(e); }
+    if (!list.length) { var e = document.createElement('div'); e.className = 'dsep'; e.textContent = mtView ? 'メモはまだないで。直したいこと・ほしい機能を書いてな。' : '今日と昨日のお知らせはないで。朝のひとこと、離乳食のクリア、質問の返事がここに出ます。'; box.appendChild(e); }
     seen = nData.now || Date.now(); store('ikuji_seen', seen); drawBadge();
     // 開いた直後だけ：まだ読んでいない一番古い吹き出しを上に。全部読んでいれば一番下（最新）へ
     var sc = $('chatScroll');
@@ -1230,7 +1252,7 @@
     cEditing = x;
     var canEdit = x.src === 'maint' || !x.done;
     $('cText').value = x.text; $('cText').disabled = !canEdit; show('cOk', canEdit);
-    setT('cHint', x.src === 'maint' ? 'メンテのメモを直せます' : canEdit ? '返事が来る前なら直せます' : '返事が届いているので直せません。消すと、返事も一緒に消えます');
+    setT('cHint', x.src === 'maint' ? '「こうしてや」のメモを直せます' : canEdit ? '返事が来る前なら直せます' : '返事が届いているので直せません。消すと、返事も一緒に消えます');
     clearTimeout(cDelTimer); setT('cDelT', '消す'); $('cDel').classList.remove('sure');
     show('cEditBg', true);
   }
@@ -1258,18 +1280,19 @@
     var kz = nData && nData.kizuki;
     if (!kz || !kz.text) { say('今週の気づきはまだないで。週に1回、記録を読んで届きます。'); return; }
     if (!kz.t) { say('今週の気づき' + (kz.meta ? '（' + kz.meta + '）' : '') + '\n' + kz.text); return; }
+    if (askMode === 'maint') document.querySelector('#askMode [data-m="ask"]').click();
     ntAll = true;
     var el = drawNotices();
     if (el) $('chatScroll').scrollTop = Math.max(0, el.offsetTop - 4);
   });
   // 下のカードの切り替え：Claude に聞く（質問）／メンテのメモ（直したいこと。質問のタスクは答えない。「メンテ」シートに入る）
-  var askMode = 'ask';
   document.querySelectorAll('#askMode button').forEach(function (b) {
     b.addEventListener('click', function () {
       askMode = b.getAttribute('data-m'); segOn('askMode', b);
       var mt = askMode === 'maint';
       setT('askHint', mt ? '写真は Claude のチャットへ' : '返事は毎時53分ごろ');
-      $('chatIn').placeholder = mt ? '直したいこと・困ったこと' : '例：先週より夜寝てる？';
+      $('chatIn').placeholder = mt ? '直したいこと・ほしい機能' : '例：先週より夜寝てる？';
+      ntAll = false; aiJump = false; drawNotices(); var sc = $('chatScroll'); sc.scrollTop = sc.scrollHeight; // 見せる吹き出しを切り替える（11-15a）
       document.querySelectorAll('.cq [data-q]').forEach(function (q) { q.hidden = mt; });
       setT('chatGo', mt ? '残す' : '送る');
     });
@@ -1289,7 +1312,7 @@
         drawNotices();
         var sc = $('chatScroll'); sc.scrollTop = sc.scrollHeight; // 自分が送ったものが見えるように、一番下へ
       }
-      say(res.message, false);
+      say(req.maint ? '「こうしてや」に残したで。直すかどうかは、Claude のチャットで相談してな。' : res.message, false);
     }, function () { setBusy(false); });
   }
   $('chatGo').addEventListener('click', function () { ask($('chatIn').value); });
