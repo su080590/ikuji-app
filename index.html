@@ -184,6 +184,13 @@
   a.lk div { flex: 1; min-width: 0; } a.lk b { display: block; font-size: 14px; font-weight: 600; }
   a.lk span { display: block; font-size: 11px; color: var(--mute); }
   a.lk i { font-style: normal; color: var(--p); }
+  /* 買いもの（在庫）。11-15b */
+  .st { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-top: 1px solid var(--line); }
+  .st:first-of-type { border-top: 0; }
+  .st div { flex: 1; min-width: 0; } .st b { display: block; font-size: 14px; font-weight: 600; }
+  .st span { display: block; font-size: 12px; color: var(--mute); } .st span.low { color: var(--warn); font-weight: 600; }
+  .st a { font-size: 12px; color: var(--p); text-decoration: none; padding: 8px 4px; flex: none; }
+  .st button { flex: none; font-size: 13px; padding: 8px 12px; } .st button.sure { background: var(--p); color: #fff; }
   textarea.memo { width: 100%; font: inherit; font-size: 16px; border: 1px solid #ccc; border-radius: 10px; padding: 8px; height: 90px; resize: none; }
   .tlSum div + div { margin-top: 2px; }
   .nt { background: #fff; border-radius: 14px; padding: 8px 12px; margin-bottom: 7px; border-left: 4px solid var(--p2); }
@@ -318,7 +325,7 @@
   <div id="viewTl" hidden>
     <div class="tlNav"><button id="tlPrev">‹</button><b id="tlDate">今日</b><button id="tlNext">›</button></div>
     <div class="card tlSum" id="tlSum">読み込み中…</div>
-    <div class="rc tlBox"><div class="ri" id="tlList" style="margin-top:0;padding-top:0;border-top:0"></div></div>
+    <div class="rc tlBox" id="tlBox"><div class="ri" id="tlList" style="margin-top:0;padding-top:0;border-top:0"></div></div>
   </div>
 
   <!-- ===== みよか（グラフ） ===== -->
@@ -357,8 +364,12 @@
       <div class="fgrp">あと1回でクリア</div><div id="fd-one"></div>
       <div class="fgrp" id="fd-guideL">1回の量の目安</div><div class="gd" id="fd-guide"></div><div class="hint" id="fd-note"></div>
       <div class="fgrp">最近の献立</div><div id="m-meals"></div>
-      <div id="fd-exBox" hidden><div class="fgrp">表のほかに食べたもの（クリアの数には入りません）</div><div id="fd-extra"></div></div>
       <details class="fall"><summary id="fd-allL">全部の食材</summary><div id="fd-all"></div><div class="hint">★は保育園が家で試してほしい食材。2回食べたらクリア（緑）。枠だけは1回</div></details>
+      <details class="fall" id="fd-eatBox" hidden><summary id="fd-eatL">食べたことのある食材</summary>
+        <div class="fgrp">1回だけ（もう1回ためすと安心）</div><div id="fd-eat1"></div>
+        <div class="fgrp">2回以上</div><div id="fd-eat2"></div>
+        <div class="fgrp">同じなかまで、まだのもの</div><div id="fd-left"></div>
+        <div class="hint">たら・鯛のように、表では1つにまとめている食材も、1つずつ数えています。表にない食材（しらす・パプリカなど）も入ります</div></details>
     </div>
   </div>
 
@@ -375,6 +386,7 @@
 
   <!-- ===== たよろか（区や都のリンク集） ===== -->
   <div id="viewTa" hidden>
+    <div id="stBox"></div>
     <div id="lkBox"><div class="card">読み込み中…</div></div>
     <div class="hint" style="padding:0 6px 8px">リンクは、スプレッドシート「育児記録」の「リンク」シートで足したり消したりできます（名前・URL・分類・並び順・メモ）</div>
   </div>
@@ -473,7 +485,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-15a';
+  var VERSION = '2026-11-15b';
   // iPhone のホーム画面アプリだけ：ページを画面の高さ（screen.height）以上にして、下のタブが浮くのを防ぐ。向きを変えたときも合わせ直す
   function fixStandalone() { try { if (navigator.standalone === true) document.body.style.minHeight = (Math.abs(window.orientation) === 90 ? screen.width : screen.height) + 'px'; } catch (e) {} }
   fixStandalone(); window.addEventListener('orientationchange', fixStandalone);
@@ -561,7 +573,7 @@
   drawRecOpen();
 
   // ===== Apps Script を呼ぶ（doPost に { api, ...引数 }。Content-Type を付けないので事前確認が起きない） =====
-  var READS = { apiLatest: 1, apiDay: 1, apiGraph: 1, apiStats: 1, apiNotices: 1, apiLinks: 1 };
+  var READS = { apiLatest: 1, apiDay: 1, apiGraph: 1, apiStats: 1, apiNotices: 1, apiLinks: 1, apiStock: 1 };
   function post(req) { return fetch(API_URL, { method: 'POST', body: JSON.stringify(req), redirect: 'follow' }).then(function (r) { return r.json(); }); }
   // 読むだけの呼び出しは、通信が切れたら少し待って1回だけやり直す。返り値は「終わったら進む」ための Promise（失敗しても止まらない）
   function call(fn, req, done, fail) {
@@ -804,11 +816,11 @@
     curTab = name;
     for (var k in TABS) { $(TABS[k][0]).classList.toggle('on', k === name); show(TABS[k][1], k === name); }
     setT('topName', TABS[name][2]);
-    setT('topSub', name === 'rec' ? greet() : name === 'tl' ? '日ごとの記録' : name === 'gr' ? '‹ › でグラフ切り替え' : name === 'ai' ? 'お知らせ' : '区や都のサービス');
+    setT('topSub', name === 'rec' ? greet() : name === 'tl' ? '日ごとの記録' : name === 'gr' ? '‹ › でグラフ切り替え' : name === 'ai' ? 'お知らせ' : '買いもの・区や都のサービス');
     window.scrollTo(0, 0);
-    if (name === 'tl') loadDay();
+    if (name === 'tl') { loadDay(); fitTl(); }
     if (name === 'gr') { if (gData) drawRhythm(); if (sData) drawStats(); loadGraph().then(loadStats); }
-    if (name === 'ta') { drawLinks(); loadLinks(); }
+    if (name === 'ta') { drawStock(); drawLinks(); loadStock().then(loadLinks); }
     if (name === 'ai') {
       // 開いたとき：まだ読んでいない一番古い吹き出しまで動かす（全部読んでいれば一番下）。読み込みが終わるまでの描き直しも同じ場所へ
       seenOpen = seen; ntAll = false; aiJump = true;
@@ -858,7 +870,15 @@
     var list = $('tlList'); list.innerHTML = '';
     if (!d.rows.length) { list.textContent = 'この日の記録はないで。'; return; }
     d.rows.forEach(function (r) { addRow(list, r, r.hm, function () { delete tlCache[d.date]; loadDay(); }); });
+    fitTl();
   }
+  // ながれの箱の高さ：下のタブのすぐ上までにする（11-15b）。CSS の 100vh は iPhone のホーム画面アプリでは画面より長く、最後の2〜3行がタブの下に隠れた
+  function fitTl() {
+    try { var b = $('tlBox'); if ($('viewTl').hidden) return;
+      var h = document.querySelector('.bar').getBoundingClientRect().top - b.getBoundingClientRect().top - 8;
+      if (h > 120) b.style.maxHeight = h + 'px'; } catch (e) {}
+  }
+  window.addEventListener('resize', fitTl); window.addEventListener('orientationchange', function () { setTimeout(fitTl, 300); });
   $('tlPrev').addEventListener('click', function () { tlDay = addDays(tlDay, -1); loadDay(); });
   $('tlNext').addEventListener('click', function () { if (tlDay < today0()) { tlDay = addDays(tlDay, 1); loadDay(); } });
 
@@ -1134,11 +1154,15 @@
     f.meals.forEach(function (m) { var e = document.createElement('div'); e.className = 'meal'; e.style.fontSize = '12px'; e.textContent = m.at + '　' + m.detail; ml.appendChild(e); });
     setT('fd-allL', '全部の食材（クリア ' + f.cleared + '/' + f.total + '・★ ' + f.starDone + '/' + f.starTotal + '）');
     chips($('fd-all'), f.all || f.remaining);
-    // 表のほかに食べたもの：後期の表でもう食べたもの（✓＝2回）と、表にない食材（回数）。11-15a
-    var ex = $('fd-extra'); ex.innerHTML = '';
-    (f.lateAte || []).forEach(function (x) { var s = document.createElement('span'); s.className = 'chip' + (x.n >= 2 ? ' done' : ' one'); s.textContent = (x.n >= 2 ? '✓ ' : '') + x.food + '（後期・' + x.n + '回）'; ex.appendChild(s); });
-    (f.extra || []).forEach(function (x) { var s = document.createElement('span'); s.className = 'chip'; s.textContent = x.food + '（' + x.n + '回）'; ex.appendChild(s); });
-    show('fd-exBox', !!ex.firstChild);
+    // 食べたことのある食材を1つずつ（11-15b）。古い Apps Script（eaten がない）のときは出さない
+    var eat = f.eaten || [];
+    var chipList = function (id, arr, cls, fmt) { var el = $(id); el.innerHTML = ''; arr.forEach(function (x) { var c = document.createElement('span'); c.className = 'chip' + cls; c.textContent = fmt(x); el.appendChild(c); });
+      if (!arr.length) { var e = document.createElement('span'); e.style.fontSize = '12px'; e.style.color = '#777'; e.textContent = 'なし'; el.appendChild(e); } };
+    chipList('fd-eat1', eat.filter(function (x) { return x.n === 1; }), ' one', function (x) { return x.food; });
+    chipList('fd-eat2', eat.filter(function (x) { return x.n >= 2; }).sort(function (p, q) { return q.n - p.n; }), ' done', function (x) { return x.food + ' ' + x.n; });
+    chipList('fd-left', f.variantsLeft || [], '', function (x) { return x; });
+    setT('fd-eatL', '食べたことのある食材（' + eat.length + '品）');
+    show('fd-eatBox', eat.length > 0);
   }
   document.querySelectorAll('#gwSeg button').forEach(function (b) { b.addEventListener('click', function () { gwMode = b.getAttribute('data-g'); segOn('gwSeg', b); drawStats(); }); });
   window.addEventListener('resize', function () { if (curTab === 'gr') { drawRhythm(); drawStats(); } });
@@ -1344,6 +1368,38 @@
       });
       box.appendChild(c);
     });
+  }
+
+  // ===== たよろか：買いもの（在庫）。「在庫」シートの品物ごとに、あと何日ぶんか・［買った］・店のページ（11-15b） =====
+  var stData = null;
+  function loadStock() {
+    if (!token) return Promise.resolve();
+    return call('apiStock', {}, function (res) { stData = res.items || []; if (curTab === 'ta') drawStock(); }, function () {});
+  }
+  function drawStock() {
+    var box = $('stBox'); box.innerHTML = '';
+    if (!stData || !stData.length) return;
+    var c = document.createElement('div'); c.className = 'card';
+    var h = document.createElement('h2'); h.textContent = '買いもの（残りの目安）'; c.appendChild(h);
+    stData.forEach(function (it) {
+      var r = document.createElement('div'); r.className = 'st';
+      var d = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span');
+      b.textContent = it.name;
+      sp.textContent = (it.daysLeft == null ? '' : 'あと約' + Math.floor(it.daysLeft) + '日ぶん・') + '残り ' + Number(it.left).toLocaleString() + it.unit + (it.low ? '　そろそろ買いどき' : '');
+      if (it.low) sp.className = 'low';
+      d.appendChild(b); d.appendChild(sp); r.appendChild(d);
+      if (it.url) { var a = document.createElement('a'); a.href = it.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '店 ↗'; r.appendChild(a); }
+      var bt = document.createElement('button'), tm = null; bt.textContent = '買った'; hap(bt);
+      bt.addEventListener('click', function () {
+        if (busy) return;
+        if (!bt.classList.contains('sure')) { bt.classList.add('sure'); bt.textContent = '1つ足す？'; hap(bt); tm = setTimeout(function () { bt.classList.remove('sure'); bt.textContent = '買った'; hap(bt); }, 4000); return; }
+        clearTimeout(tm); setBusy(true); say('足してます…', false);
+        call('apiBought', { name: it.name, qty: 1 }, function (res) { setBusy(false); if (res.items) stData = res.items; drawStock(); say(res.message, false); }, function () { setBusy(false); });
+      });
+      r.appendChild(bt); c.appendChild(r);
+    });
+    var hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = '記録（ミルクの量・おむつの回数）から自動で減ります。品物を足す・残りを直すのは「在庫」シートで';
+    c.appendChild(hint); box.appendChild(c);
   }
 
   // ===== 開いたとき：まとめ → 裏で今日のながれ・みよか・しゃべろも先に取っておく =====
