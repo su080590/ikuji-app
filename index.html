@@ -485,7 +485,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-15d';
+  var VERSION = '2026-11-17a';
   // iPhone のホーム画面アプリだけ：ページを画面の高さ（screen.height）以上にして、下のタブが浮くのを防ぐ。向きを変えたときも合わせ直す
   function fixStandalone() { try { if (navigator.standalone === true) document.body.style.minHeight = (Math.abs(window.orientation) === 90 ? screen.width : screen.height) + 'px'; } catch (e) {} }
   fixStandalone(); window.addEventListener('orientationchange', fixStandalone);
@@ -1430,7 +1430,12 @@
   document.querySelectorAll('#kinds button, .panel button, #eOk, #wOk, #chatGo, #undo, #cOk, #cDel').forEach(hap);
   setT('topSub', greet());
   refresh(function () { prefetchAll(); });
-  setInterval(function () { if (busy) return; refresh(); if (curTab === 'gr') loadGraph().then(loadStats); if (curTab === 'rec') loadGraph(); if (curTab === 'ai') loadNotices(); }, 120000); // つけとこの予想も2分おきに取り直す（もう1台で入れた記録が予想に出なかったため。11-13b）
+  setInterval(function () {
+    if (busy) return; refresh();
+    // お知らせ・返事は、どのタブを開いていても取り直す（しゃべろの印が、アプリを開き直さないと付かなかったため。11-17a）。同時に投げず、順番に
+    var p = curTab === 'gr' ? loadGraph().then(loadStats) : curTab === 'rec' ? loadGraph() : Promise.resolve();
+    p.then(loadNotices);
+  }, 120000); // つけとこの予想も2分おきに取り直す（もう1台で入れた記録が予想に出なかったため。11-13b）
   if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
 </script>
 </body></html>
