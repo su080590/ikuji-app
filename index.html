@@ -95,8 +95,9 @@
   .seg button.on { background: #fff; color: var(--p); font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
   /* 記録ボタン：赤ちゃんノートくらいの大きさ（4列） */
   .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  /* 丸いアイコンのボタン（2026-11-25）。数と並びは 4×3 のまま */
-  .grid button { font-size: 11px; padding: 1px 0 0; background: transparent; color: #555; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  /* 丸いアイコンのボタン（2026-11-25）。6列×2段（11-25b：スクロールを減らす。数と順番は同じ） */
+  #kinds { grid-template-columns: repeat(6, 1fr); gap: 5px 0; }
+  .grid button { font-size: 10.5px; white-space: nowrap; padding: 1px 0 0; background: transparent; color: #555; display: flex; flex-direction: column; align-items: center; gap: 1px; }
   .grid button .ki { width: 40px; height: 40px; border-radius: 50%; background: #ebe9f7; display: flex; align-items: center; justify-content: center; font-size: 21px; line-height: 1; }
   .grid button .ki.w { font-size: 15px; letter-spacing: -2px; }
   .grid button:active .ki { transform: scale(.93); }
@@ -104,7 +105,7 @@
   .sum > .two:last-child .sr { border-bottom: 0; }
   /* のこり（在庫）のカード */
   .skH { display: flex; align-items: center; justify-content: space-between; }
-  .skH button { background: transparent; padding: 0 4px; font-size: 18px; color: var(--mute); line-height: 1; }
+  .skH button { background: transparent; padding: 2px 8px; font-size: 26px; color: var(--mute); line-height: 1; min-width: 44px; min-height: 36px; }
   .sk2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .sk { text-align: left; background: transparent; padding: 3px 6px; border-radius: 10px; min-width: 0; }
   .sk .sl { display: block; font-size: 11px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -517,7 +518,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-25a';
+  var VERSION = '2026-11-25b';
   // iPhone のホーム画面アプリだけ：ページを画面の高さ（screen.height）以上にして、下のタブが浮くのを防ぐ。向きを変えたときも合わせ直す
   function fixStandalone() { try { if (navigator.standalone === true) document.body.style.minHeight = (Math.abs(window.orientation) === 90 ? screen.width : screen.height) + 'px'; } catch (e) {} }
   fixStandalone(); window.addEventListener('orientationchange', fixStandalone);
@@ -1495,26 +1496,8 @@
     openPanel('のこり');
   }
   $('skGear').addEventListener('click', openSkSet); hap($('skGear'));
-  function drawStock() {
-    var box = $('stBox'); box.innerHTML = '';
-    if (!stData || !stData.length) return;
-    var c = document.createElement('div'); c.className = 'card';
-    var h = document.createElement('h2'); h.textContent = '買いもの（残りの目安）'; c.appendChild(h);
-    stData.forEach(function (it) {
-      var r = document.createElement('div'); r.className = 'st';
-      var d = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span');
-      b.textContent = it.name;
-      sp.textContent = (it.daysLeft == null ? '' : 'あと約' + Math.floor(it.daysLeft) + '日ぶん・') + '残り ' + stNum(it) + (it.low ? '　そろそろ買いどき' : '');
-      if (it.low) sp.className = 'low';
-      d.appendChild(b); d.appendChild(sp); r.appendChild(d);
-      if (it.url) { var a = document.createElement('a'); a.href = it.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '店 ↗'; r.appendChild(a); }
-      var bt = document.createElement('button'); bt.textContent = '買った'; hap(bt);
-      bt.addEventListener('click', function () { openBuy(it); });
-      r.appendChild(bt); c.appendChild(r);
-    });
-    var hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = '記録（ミルクの量・おむつの回数）から自動で減ります。残りを直すのは、つけとこの「のこり」の歯車から。品物を足すのは「在庫」シートで';
-    c.appendChild(hint); box.appendChild(c);
-  }
+  // たよろかの買いものカードはなくした（つけとこの「のこり」で足りる。パパ。11-25b）
+  function drawStock() { $('stBox').innerHTML = ''; }
 
   // ===== 開いたとき：まとめ → 裏で今日のながれ・みよか・しゃべろも先に取っておく =====
   // 同時に投げず、1つずつ順番に（同時だと iPhone で通信が切れることがあった。2026-11-10 夜）
