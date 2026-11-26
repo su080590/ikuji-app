@@ -518,7 +518,7 @@
   </div>
 
 <script>
-  var VERSION = '2026-11-25b';
+  var VERSION = '2026-11-26a';
   // iPhone のホーム画面アプリだけ：ページを画面の高さ（screen.height）以上にして、下のタブが浮くのを防ぐ。向きを変えたときも合わせ直す
   function fixStandalone() { try { if (navigator.standalone === true) document.body.style.minHeight = (Math.abs(window.orientation) === 90 ? screen.width : screen.height) + 'px'; } catch (e) {} }
   fixStandalone(); window.addEventListener('orientationchange', fixStandalone);
@@ -850,7 +850,7 @@
     curTab = name;
     for (var k in TABS) { $(TABS[k][0]).classList.toggle('on', k === name); show(TABS[k][1], k === name); }
     setT('topName', TABS[name][2]);
-    setT('topSub', name === 'rec' ? greet() : name === 'tl' ? '日ごとの記録' : name === 'gr' ? '‹ › でグラフ切り替え' : name === 'ai' ? 'お知らせ' : '買いもの・区や都のサービス');
+    setT('topSub', name === 'rec' ? greet() : name === 'tl' ? '日ごとの記録' : name === 'gr' ? '‹ › でグラフ切り替え' : name === 'ai' ? 'お知らせ' : '区や都のサービス');
     window.scrollTo(0, 0);
     if (name === 'tl') { loadDay(); fitTl(); }
     if (name === 'gr') { if (gData) drawRhythm(); if (sData) drawStats(); loadGraph().then(loadStats); }
@@ -1424,7 +1424,7 @@
   var stData = null;
   function loadStock() {
     if (!token) return Promise.resolve();
-    return call('apiStock', {}, function (res) { stData = res.items || []; drawSk(); if (curTab === 'ta') drawStock(); }, function () {});
+    return call('apiStock', {}, function (res) { stData = res.items || []; try { localStorage.setItem('ikuji_stock', JSON.stringify(stData)); } catch (e) {} drawSk(); if (curTab === 'ta') drawStock(); }, function () {});
   }
   function stNum(it) { return (it.showLeft == null ? Number(it.left) : Number(it.showLeft)).toLocaleString() + (it.showUnit || it.unit); }
   // つけとこの「のこり」：2列。少なくなったら色を変えて「そろそろ買う」と店のリンクを出す
@@ -1496,6 +1496,8 @@
     openPanel('のこり');
   }
   $('skGear').addEventListener('click', openSkSet); hap($('skGear'));
+  // 前に出した「のこり」を覚えておいて、開いたらすぐ出す（読み込みがいちばん最後で、出るのが遅かった。11-26a）。そのあと新しい数に入れかえる
+  try { var stOld = JSON.parse(localStorage.getItem('ikuji_stock') || 'null'); if (stOld && stOld.length) { stData = stOld; drawSk(); } } catch (e) {}
   // たよろかの買いものカードはなくした（つけとこの「のこり」で足りる。パパ。11-25b）
   function drawStock() { $('stBox').innerHTML = ''; }
 
@@ -1506,7 +1508,7 @@
     if (!token) return;
     if (preBusy) { preAgain = true; return; }
     preBusy = true;
-    fetchDay(ymd(today0())).then(loadGraph).then(loadStats).then(loadNotices).then(loadLinks).then(loadStock).then(function () { preBusy = false; if (preAgain) { preAgain = false; prefetchAll(); } });
+    fetchDay(ymd(today0())).then(loadGraph).then(loadStock).then(loadStats).then(loadNotices).then(loadLinks).then(function () { preBusy = false; if (preAgain) { preAgain = false; prefetchAll(); } });
   }
   document.querySelectorAll('#kinds button, .panel button, #eOk, #wOk, #chatGo, #undo, #cOk, #cDel').forEach(hap);
   setT('topSub', greet());
