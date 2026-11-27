@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f3f5f6">
+<title>週フォーカスカレンダー</title>
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+/* cal.html … 週フォーカスカレンダー（2026-11-28）。試作（Claude のアーティファクト 11/26 版）の画面と操作をそのまま移し、
+   予定の読み込みだけを Apps Script「予定（週フォーカスカレンダー）」の calGet に差し替えた。合言葉は端末に保存（cal_token）。
+   レイアウト: 1画面に1か月。左の週番号レールで選んだ週だけ高さを広げ、過ぎた週は点だけに畳む。日付タップで1日の時間軸 */
+:root{
+  --bg:#f3f5f6; --surface:#ffffff; --ink:#1b2428; --muted:#68757b; --line:#dbe2e5;
+  --accent:#0f6e6a; --rail:#e7ecee; --sun:#c8423b; --sat:#2c6bbf;
+  --font:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12181b; --surface:#1b2327; --ink:#e8eef0; --muted:#93a1a7; --line:#2b363b;
+    --accent:#39b3ab; --rail:#222c31; --sun:#f0827b; --sat:#7fb0f2; color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-variant-numeric:tabular-nums;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#app{position:relative;height:100%;display:flex;flex-direction:column;max-width:720px;margin:0 auto;overflow:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+header{padding:10px 12px 6px;display:flex;flex-direction:column;gap:8px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.01em}
+.nav{display:flex;gap:6px}
+.nav button,.nav a{height:34px;min-width:34px;padding:0 10px;border:1px solid var(--line);background:var(--surface);border-radius:17px;font-size:14px;line-height:32px;text-decoration:none;color:inherit;text-align:center}
+#cals{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -12px;padding:0 12px 2px}
+#cals::-webkit-scrollbar{display:none}
+.cal{display:flex;align-items:center;gap:5px;flex:none;height:28px;padding:0 10px 0 8px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-size:12px;white-space:nowrap}
+.cal i{width:10px;height:10px;border-radius:3px;background:var(--c);flex:none}
+.cal.rem i{border-radius:50%;background:transparent;box-shadow:inset 0 0 0 2px var(--c)}
+.cal[aria-pressed="false"]{color:var(--muted);background:transparent;text-decoration:line-through}
+.cal[aria-pressed="false"] i{opacity:.35}
+.wdrow{display:flex;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line)}
+.railhd{width:34px;flex:none;text-align:center;padding:3px 0}
+.wds{flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center}
+.wds span{padding:3px 0}
+.wds span:first-child{color:var(--sun)} .wds span:last-child{color:var(--sat)}
+#weeks{flex:1;min-height:0;overflow:hidden}
+.wk{display:flex;overflow:hidden;border-bottom:1px solid var(--line);transition:height .22s ease}
+.wk.focus{background:var(--surface)}
+.rail{position:relative;width:34px;flex:none;touch-action:none;border:0;border-right:1px solid var(--line);background:var(--rail);color:var(--muted);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 0;cursor:ns-resize;-webkit-user-select:none;user-select:none}
+.rail::after{content:"";width:12px;height:10px;opacity:.5;background:linear-gradient(currentColor,currentColor) 0 0/100% 1.5px no-repeat,linear-gradient(currentColor,currentColor) 0 50%/100% 1.5px no-repeat,linear-gradient(currentColor,currentColor) 0 100%/100% 1.5px no-repeat}
+.wk.focus .rail{background:var(--accent);color:#fff;font-size:16px;font-weight:700}
+.days{flex:1;min-width:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.wk.focus .days{overflow-y:auto}
+.day{min-width:0;padding:3px 1px 5px;border-left:1px solid var(--line)}
+.day:first-child{border-left:0}
+.day.out{opacity:.45}
+.num{font-size:12px;height:20px;line-height:20px;text-align:center}
+.num span{display:inline-block;min-width:20px;padding:0 3px;border-radius:10px}
+.wk.focus .num{cursor:pointer}
+.wk.focus .num span{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.day.sun .num,.day.hol .num{color:var(--sun)} .day.sat .num{color:var(--sat)}
+.day.sat.hol .num{color:var(--sun)}
+.day.today .num span{background:var(--ink);color:var(--bg);font-weight:700;text-decoration:none}
+.chip{display:block;width:100%;border:0;text-align:left;font-size:10px;line-height:14px;height:16px;margin-top:2px;padding:1px 3px;border-radius:3px;overflow:hidden;white-space:nowrap;background:color-mix(in srgb,var(--c) 17%,var(--surface));color:color-mix(in srgb,var(--c) 68%,var(--ink))}
+.chip.all{background:var(--c);color:var(--on,#fff)}
+.chip.rem{background:transparent;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 55%,transparent)}
+.chip.rem .tt::before{content:"○ "}
+.chip.rem.done .tt{text-decoration:line-through;opacity:.6}
+.chip.rem.done .tt::before{content:"✓ "}
+.chip .tm{display:none}
+.wk.focus .chip{height:auto;white-space:normal;cursor:pointer;padding:2px 3px}
+.wk.focus .chip .tm{display:block;font-size:9px;line-height:11px;opacity:.8}
+.wk.focus .chip .tt{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;word-break:break-all}
+.topbox{overflow:hidden}
+.wk.focus .topbox .chip{height:16px;white-space:nowrap;padding:1px 3px}
+.wk.focus .topbox .chip .tm{display:none}
+.wk.focus .topbox .chip .tt{display:inline}
+.tgrid{position:relative;margin-top:3px;background:repeating-linear-gradient(to bottom,var(--line) 0,var(--line) 1px,transparent 1px,transparent var(--hh))}
+.wb{position:absolute;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;border:0;padding:1px 1px 0 4px;border-radius:3px;overflow:hidden;text-align:left;font-size:9px;line-height:11px;word-break:break-all;cursor:pointer;background:color-mix(in srgb,var(--c) 22%,var(--surface));color:color-mix(in srgb,var(--c) 66%,var(--ink));box-shadow:inset 2.5px 0 0 var(--c),0 0 0 1px var(--surface)}
+.wb.rem{background:var(--surface);padding-left:2px;box-shadow:inset 0 0 0 1px var(--c),0 0 0 1px var(--surface)}
+.wb.done{text-decoration:line-through;opacity:.6}
+.hl{position:absolute;left:0;right:0;text-align:center;font-size:9px;font-weight:400;opacity:.85;transform:translateY(-50%);pointer-events:none}
+.cal.mode{border-color:var(--accent);color:var(--accent);font-weight:600}
+.cal.mode[aria-pressed="true"]{background:var(--accent);color:#fff;text-decoration:none}
+.cal.mode[aria-pressed="false"]{text-decoration:none;color:var(--accent)}
+.more{font-size:9px;line-height:14px;color:var(--muted);text-align:center;margin-top:2px}
+.dots{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;padding:1px 2px 0}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--c)}
+.dot.rem{background:transparent;box-shadow:inset 0 0 0 1px var(--c)}
+.wk.past .chip,.wk.past .dot{opacity:.6}
+footer{display:flex;justify-content:space-between;gap:10px;padding:6px 12px 8px;font-size:11px;line-height:1.4;color:var(--muted)}
+footer span:last-child{text-align:right;flex:none}
+#status.warn{color:var(--sun)}
+
+/* 1日の時間軸 */
+#dayv{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;z-index:5;padding-top:env(safe-area-inset-top)}
+#dayv[hidden]{display:none}
+.dvh{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 8px}
+.dvh button{height:34px;min-width:34px;padding:0 12px;border:1px solid var(--line);background:var(--surface);border-radius:17px;font-size:14px}
+.dvh div{display:flex;gap:6px}
+.dvhint{font-size:11px;color:var(--muted)}
+.dvweek{display:grid;grid-template-columns:repeat(7,1fr);padding:0 8px 6px}
+.dvweek button{border:0;background:transparent;padding:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted)}
+.dvweek b{width:36px;height:36px;line-height:36px;border-radius:50%;font-size:18px;font-weight:500;color:var(--ink)}
+.dvweek .sun b,.dvweek .hol b{color:var(--sun)} .dvweek .sat b{color:var(--sat)}
+.dvweek .sat.hol b{color:var(--sun)}
+.dvweek .tdy b{box-shadow:inset 0 0 0 1.5px var(--line)}
+.dvweek .sel b{background:var(--ink);color:var(--bg);font-weight:700;box-shadow:none}
+.dvtitle{display:flex;align-items:baseline;gap:16px;padding:8px 12px 6px;border-top:1px solid var(--line);font-size:16px;font-weight:700;flex-wrap:wrap}
+.dvtitle small{font-size:13px;font-weight:400;color:var(--muted)}
+.dvtitle em{font-size:13px;font-weight:400;font-style:normal;color:var(--sun)}
+.dval{font-size:11px;color:var(--muted);text-align:right;padding:5px 6px 0 0}
+.dvtop{display:grid;grid-template-columns:38px minmax(0,1fr);border-bottom:1px solid var(--line)}
+.dvt{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 4px;align-content:start;padding:0 6px 6px 0;min-width:0;min-height:26px;max-height:92px;overflow-y:auto}
+.dvt .chip{height:20px;white-space:nowrap;text-overflow:ellipsis;border-radius:10px;font-size:11px;line-height:15px;padding:2px 4px;cursor:pointer}
+.dvscroll{flex:1;min-height:0;overflow-y:auto;background:var(--surface)}
+.dvgrid{position:relative;display:grid;grid-template-columns:38px minmax(0,1fr)}
+@keyframes inL{from{transform:translateX(48px);opacity:.2}to{transform:none;opacity:1}}
+@keyframes inR{from{transform:translateX(-48px);opacity:.2}to{transform:none;opacity:1}}
+.dvgrid.inL .dvcol{animation:inL .18s ease}
+.dvgrid.inR .dvcol{animation:inR .18s ease}
+@media (prefers-reduced-motion: reduce){.dvgrid.inL .dvcol,.dvgrid.inR .dvcol{animation:none}.wk{transition:none}}
+.dvhrs{position:relative}
+.dvhrs span{position:absolute;right:5px;font-size:10px;color:var(--muted);transform:translateY(-50%)}
+.dvcol{position:relative;border-left:1px solid var(--line);background:repeating-linear-gradient(to bottom,var(--line) 0,var(--line) 1px,transparent 1px,transparent var(--hh))}
+.blk{position:absolute;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;border:0;text-align:left;overflow:hidden;padding:2px 3px 2px 6px;border-radius:4px;font-size:11px;line-height:14px;cursor:pointer;background:color-mix(in srgb,var(--c) 20%,var(--surface));color:color-mix(in srgb,var(--c) 66%,var(--ink));box-shadow:inset 3px 0 0 var(--c),0 0 0 1px var(--surface)}
+.blk b{display:block;font-weight:600;word-break:break-all}
+.blk small{display:block;font-size:10px;opacity:.8}
+.blk.rem{background:var(--surface);box-shadow:inset 0 0 0 1px var(--c),0 0 0 1px var(--surface);padding-left:4px}
+.blk.rem b::before{content:"○ "}
+.blk.rem.done b{text-decoration:line-through;opacity:.6}
+.blk.rem.done b::before{content:"✓ "}
+.nowline{position:absolute;left:0;right:0;height:2px;background:var(--sun);z-index:40;pointer-events:none}
+.nowline::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--sun)}
+
+#sheet,#cfg,#tok{position:fixed;left:0;right:0;bottom:0;max-width:720px;margin:0 auto;background:var(--surface);border-top:1px solid var(--line);border-radius:14px 14px 0 0;box-shadow:0 -8px 24px rgba(0,0,0,.16);padding:14px 16px calc(20px + env(safe-area-inset-bottom));max-height:72%;overflow-y:auto;z-index:10}
+#sheet[hidden],#cfg[hidden],#tok[hidden]{display:none}
+#cfg h2,#tok h2{font-size:16px;margin:0 36px 10px 0}
+#cfg h3{font-size:13px;margin:16px 0 4px;color:var(--muted);font-weight:600}
+.xbtn{position:absolute;top:8px;right:10px;width:34px;height:34px;border:0;background:transparent;font-size:20px;color:var(--muted)}
+.cfr{display:flex;flex-direction:column;gap:6px;padding:8px 0;border-top:1px solid var(--line)}
+.cfn{font-size:13px}
+.cfs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sw{width:30px;height:30px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line)}
+.sw.on{box-shadow:0 0 0 2.5px var(--ink)}
+.cfs label{display:flex;align-items:center;gap:4px;font-size:13px}
+.cfs input[type=text]{flex:1;min-width:110px;height:32px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:14px}
+.cfs select{height:32px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:14px;padding:0 6px}
+.cfs input[type=checkbox]{width:20px;height:20px}
+.cfm{font-size:11px;color:var(--muted)}
+#cfmsg{font-size:12px;color:var(--accent);min-height:18px;margin:6px 0 0}
+#sheet h2{font-size:16px;margin:0 36px 6px 0;line-height:1.4}
+#sheet p{margin:4px 0;font-size:13px;line-height:1.6;color:var(--muted);white-space:pre-wrap;word-break:break-word}
+#sheet .calname{display:flex;align-items:center;gap:6px;color:var(--ink)}
+#sheet .calname i{width:10px;height:10px;border-radius:3px;background:var(--c)}
+.act{display:block;width:100%;margin:10px 0 0;padding:12px;border:0;border-radius:10px;background:var(--accent);color:#fff;font-weight:700;font-size:15px;text-align:center;text-decoration:none}
+.act.sub{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+#tok p{font-size:13px;line-height:1.6;color:var(--muted);margin:4px 0}
+#tokin{width:100%;height:44px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:16px;margin-top:8px}
+#tokmsg{color:var(--sun)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="top">
+      <h1 id="ttl"></h1>
+      <div class="nav">
+        <a id="home" href="./index.html" aria-label="育児記録にもどる">育児</a>
+        <button id="prev" aria-label="前の月">‹</button>
+        <button id="today">今日</button>
+        <button id="next" aria-label="次の月">›</button>
+        <button id="reload" aria-label="予定を読み直す">↻</button>
+      </div>
+    </div>
+    <div id="cals" aria-label="表示するカレンダー"></div>
+  </header>
+  <div class="wdrow"><span class="railhd">週</span><div class="wds"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div></div>
+  <main id="weeks"></main>
+  <footer><span id="status"></span><span>週番号をなぞる＝拡大<br>日付をタップ＝時間表示</span></footer>
+
+  <section id="dayv" hidden aria-label="1日の時間表示">
+    <div class="dvh">
+      <button id="dvback">‹ 月の表示へ</button><span class="dvhint">左右にスワイプで前後の日</span>
+      <div><button id="dvprev" aria-label="前の日">‹</button><button id="dvnext" aria-label="次の日">›</button></div>
+    </div>
+    <div class="dvweek" id="dvweek"></div>
+    <div class="dvtitle"><small id="dvwk"></small><span id="dvdate"></span><em id="dvhol"></em></div>
+    <div class="dvtop"><span class="dval">終日</span><div class="dvt" id="dvt0"></div></div>
+    <div class="dvscroll" id="dvscroll"><div class="dvgrid" id="dvgrid"><div class="dvhrs" id="dvhrs"></div><div class="dvcol" id="dvc0"></div></div></div>
+  </section>
+
+  <div id="cfg" hidden>
+    <button class="xbtn" id="cfx" aria-label="閉じる">×</button>
+    <h2>カレンダーの設定</h2>
+    <h3>色（この端末だけ）</h3>
+    <div id="cfl"></div>
+    <h3>取り込むカレンダー（iPhone から届いたもの）</h3>
+    <p class="cfm">変えたあと、次の取り込みから反映します。「共有」にすると相手の画面にも出ます。</p>
+    <div id="cfi"></div>
+    <p id="cfmsg"></p>
+    <button class="act sub" id="tokreset">合言葉を入れ直す</button>
+  </div>
+  <div id="sheet" hidden>
+    <button class="xbtn" id="shx" aria-label="閉じる">×</button>
+    <h2 id="sht"></h2>
+    <p id="shw"></p>
+    <p class="calname" id="shc"></p>
+    <p id="shl"></p>
+    <p id="shd"></p>
+    <div id="sha" hidden>
+      <a class="act" id="runsc" href="#">iPhone の予定を今すぐ取り込む</a>
+      <button class="act sub" id="refetch">読み直すだけ</button>
+    </div>
+  </div>
+  <div id="tok" hidden>
+    <h2>合言葉を入れてください</h2>
+    <p>カレンダー用の合言葉（自分用の長い文字）を貼り付けます。この端末に保存され、次からは聞かれません。</p>
+    <input id="tokin" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="合言葉を貼り付け">
+    <p id="tokmsg"></p>
+    <button class="act" id="tokgo">保存して開く</button>
+  </div>
+</div>
+<script>
+(function(){
+"use strict";
+var VERSION="2026-11-28a";
+var API_URL="https://script.google.com/macros/s/AKfycbyIkc-zEL9Xcv5Z_IDJuieHNbNKwHTJIwPbTPFdmLSgCeKHN5YC7-yCZxR6Rf_gvCRe1g/exec";
+var SHORTCUT="予定を送る";
+var PALETTE=["#0f766e","#b45309","#7c3aed","#2563eb","#be185d","#4d7c0f","#0e7490","#9a3412"];
+var DEFCOL={"家族":"#34c759","妻":"#af52de","自分用":"#32ade6","夫の予定":"#007aff","MUST":"#ff3b30","創業準備":"#ff9500","SiriがAppで検出":"#e0a800"};
+var WDJ="日月火水木金土";
+var pad=function(n){return String(n).padStart(2,"0")};
+var key=function(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())};
+var addDays=function(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x};
+var ymd=function(s){var p=s.split("-");return new Date(+p[0],+p[1]-1,+p[2])};
+var hm=function(d){return d.getHours()+":"+pad(d.getMinutes())};
+function isoWeek(d){var t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));var dn=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-dn);var y0=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y0)/864e5+1)/7)}
+function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+function get(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function set(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+var $=function(id){return document.getElementById(id)};
+
+/* ---- 祝日（画面の中で計算する。iPhone の「日本の祝日」は使わない） ---- */
+var holCache={};
+function holidaysOf(y){
+  if(holCache[y])return holCache[y];
+  var h={},put=function(m,d,n){h[y+"-"+pad(m)+"-"+pad(d)]=n};
+  var nthMon=function(m,n){var f=new Date(y,m-1,1).getDay();return 1+((8-f)%7)+(n-1)*7};
+  var q=y-1980,lp=Math.floor(q/4);
+  put(1,1,"元日");put(1,nthMon(1,2),"成人の日");put(2,11,"建国記念の日");put(2,23,"天皇誕生日");
+  put(3,Math.floor(20.8431+0.242194*q-lp),"春分の日");
+  put(4,29,"昭和の日");put(5,3,"憲法記念日");put(5,4,"みどりの日");put(5,5,"こどもの日");
+  put(7,nthMon(7,3),"海の日");put(8,11,"山の日");put(9,nthMon(9,3),"敬老の日");
+  put(9,Math.floor(23.2488+0.242194*q-lp),"秋分の日");
+  put(10,nthMon(10,2),"スポーツの日");put(11,3,"文化の日");put(11,23,"勤労感謝の日");
+  /* 振替休日：祝日が日曜なら、そのあとの最初の「祝日でない日」 */
+  Object.keys(h).sort().forEach(function(k){
+    var d=ymd(k);
+    if(d.getDay()!==0)return;
+    var n=addDays(d,1);
+    while(h[key(n)])n=addDays(n,1);
+    if(n.getFullYear()===y)h[key(n)]="振替休日";
+  });
+  /* 国民の休日：前の日と次の日が祝日にはさまれた平日 */
+  Object.keys(h).sort().forEach(function(k){
+    var mid=addDays(ymd(k),1),nx=addDays(ymd(k),2);
+    if(!h[key(mid)]&&h[key(nx)]&&h[key(nx)]!=="振替休日"&&mid.getDay()!==0)h[key(mid)]="国民の休日";
+  });
+  return holCache[y]=h;
+}
+function holName(k){return holidaysOf(+k.slice(0,4))[k]||""}
+
+/* ---- 状態 ---- */
+var now=new Date();
+var todayKey=key(now);
+var DEMO=/[?&]demo=1/.test(location.search);
+var token=get("cal_token")||"";
+var state={y:now.getFullYear(),m:now.getMonth(),focus:0,weeks:[],rows:[],dayKey:null,grid:get("wfc-grid")!=="0"};
+var cals=[],events=[],range={from:"",to:""},who="",syncAt="",loadedAt=0,loading=false,warn="";
+var hidden={};
+try{(JSON.parse(get("wfc-hidden3")||"[]")||[]).forEach(function(k){hidden[k]=1})}catch(e){hidden={}}
+var userColors={};
+try{(JSON.parse(get("wfc-colors3")||"[]")||[]).forEach(function(o){if(o&&o.id&&/^#[0-9a-f]{6}$/i.test(o.c))userColors[o.id]=o.c})}catch(e){userColors={}}
+var $ttl=$("ttl"),$weeks=$("weeks"),$cals=$("cals"),$status=$("status"),$sheet=$("sheet"),$dayv=$("dayv");
+
+var NOCAL={id:"",name:"",label:"",color:PALETTE[0]};
+function calOf(id){for(var i=0;i<cals.length;i++)if(cals[i].id===id)return cals[i];return NOCAL}
+function recolor(){
+  var ci=0;
+  cals.forEach(function(c){c.color=userColors[c.id]||DEFCOL[c.label]||DEFCOL[c.name]||PALETTE[(ci++)%PALETTE.length]});
+}
+function onColor(hex){
+  var m=/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex||"");
+  if(!m)return "#fff";
+  var l=(parseInt(m[1],16)*299+parseInt(m[2],16)*587+parseInt(m[3],16)*114)/1000;
+  return l>165?"#1b2428":"#fff";
+}
+function showStatus(){
+  var t=[];
+  if(loading)t.push("読み込み中…");
+  if(warn)t.push(warn);
+  else if(syncAt)t.push("iPhone の予定: "+syncAt+" 時点");
+  if(range.from&&state.weeks.length){
+    var a=key(state.weeks[0]),b=key(addDays(state.weeks[state.weeks.length-1],6));
+    if(b<range.from||a>range.to)t.push("この月は取り込みの期間の外です");
+  }
+  $status.textContent=t.join("／");$status.className=warn?"warn":"";
+}
+function rank(e){return e.allDay?(e.kind==="rem"?1:0):2}
+function byDay(){
+  var map={};
+  events.forEach(function(e){
+    if(hidden[e.cal])return;
+    (map[e.day]=map[e.day]||[]).push(e);
+  });
+  Object.keys(map).forEach(function(k){
+    map[k].sort(function(a,b){
+      var r=rank(a)-rank(b);
+      if(r)return r;
+      if(a.allDay)return 0;
+      return a.start-b.start;
+    });
+  });
+  return map;
+}
+
+/* ---- GAS の返事 → 画面が使う形 ---- */
+function dtOf(s){var m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(s||"");return m?new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]):null}
+function applyData(res){
+  who=res.who||"";range={from:res.from||"",to:res.to||""};
+  var mine=res.sync&&(who==="ママ"?res.sync.mama:res.sync.papa)||"",other=res.sync&&(who==="ママ"?res.sync.papa:res.sync.mama)||"";
+  var short=function(s){var m=/^\d{4}-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(s);return m?(+m[1])+"/"+(+m[2])+" "+(+m[3])+":"+m[4]:""};
+  syncAt=short(mine)+(other?"（相手 "+short(other)+"）":"");
+  cals=(res.cals||[]).map(function(c){
+    var rem=c.kind==="rem";
+    return {id:(rem?"rem:":"cal:")+c.name,name:c.name,label:c.label||c.name,kind:rem?"rem":"cal",share:c.share||""};
+  });
+  recolor();
+  var out=[];
+  (res.items||[]).forEach(function(x){
+    var cid=(x.kind==="rem"?"rem:":"cal:")+x.cal;
+    var base={title:x.title||"（無題）",cal:cid,kind:x.kind==="rem"?"rem":"ev",done:!!x.done,loc:x.loc||"",desc:x.desc||""};
+    if(x.allDay||!/T/.test(x.start||"")){
+      var d=ymd(String(x.start).slice(0,10)),last=x.end?ymd(String(x.end).slice(0,10)):d,g=0;
+      if(isNaN(d))return;
+      if(isNaN(last)||last<d)last=d;
+      for(;d<=last&&g<62;d=addDays(d,1),g++){var e=Object.assign({},base);e.allDay=true;e.day=key(d);out.push(e)}
+    }else{
+      var s=dtOf(x.start);
+      if(!s)return;
+      var e2=Object.assign({},base);e2.allDay=false;e2.start=s;e2.end=base.kind==="rem"?null:dtOf(x.end);e2.day=key(s);out.push(e2);
+    }
+  });
+  events=out;
+}
+function demoData(){
+  var d=function(n){return key(addDays(now,n))};
+  return {ok:true,who:"パパ",from:d(-30),to:d(90),sync:{papa:d(0)+" 07:10",mama:""},
+    cals:[{name:"家族",label:"家族",kind:"cal",share:"共有"},{name:"妻",label:"妻",kind:"cal",share:"共有"},{name:"x@example.com",label:"自分用",kind:"cal",share:"個人"},{name:"MUST",label:"MUST",kind:"rem",share:"個人"}],
+    items:[
+      {cal:"家族",kind:"ev",title:"食事",start:d(0)+"T13:00",end:d(0)+"T16:00",allDay:false,done:false,loc:"銀座",desc:""},
+      {cal:"x@example.com",kind:"ev",title:"簿記3級",start:d(0)+"T14:00",end:d(0)+"T14:45",allDay:false,done:false,loc:"",desc:""},
+      {cal:"x@example.com",kind:"ev",title:"育児・家事（固定）",start:d(0)+"T17:00",end:d(0)+"T21:30",allDay:false,done:false,loc:"",desc:""},
+      {cal:"妻",kind:"ev",title:"ピラティス",start:d(1)+"T09:30",end:d(1)+"T10:30",allDay:false,done:false,loc:"",desc:""},
+      {cal:"x@example.com",kind:"ev",title:"旅行",start:d(2),end:d(3),allDay:true,done:false,loc:"",desc:""},
+      {cal:"MUST",kind:"rem",title:"提出",start:d(1),end:"",allDay:true,done:false,loc:"",desc:""},
+      {cal:"MUST",kind:"rem",title:"電話",start:d(0)+"T15:30",end:"",allDay:false,done:true,loc:"",desc:""},
+      {cal:"家族",kind:"ev",title:"一時保育",start:d(-3)+"T10:00",end:d(-3)+"T16:00",allDay:false,done:false,loc:"",desc:""}
+    ]};
+}
+function api(body){
+  body.token=token;
+  return fetch(API_URL,{method:"POST",body:JSON.stringify(body),redirect:"follow"}).then(function(r){return r.json()});
+}
+function load(){
+  if(DEMO){applyData(demoData());loadedAt=Date.now();renderCals();redraw();showStatus();return}
+  if(!token){$("tok").hidden=false;return}
+  if(loading)return;
+  loading=true;showStatus();
+  api({api:"calGet"}).then(function(res){
+    loading=false;
+    if(!res||!res.ok){
+      warn=(res&&res.message)||"読み込めませんでした";
+      if(/合言葉/.test(warn)){$("tokmsg").textContent=warn;$("tok").hidden=false}
+      showStatus();return;
+    }
+    warn="";loadedAt=Date.now();
+    set("cal_cache",JSON.stringify(res));
+    applyData(res);renderCals();redraw();showStatus();
+  }).catch(function(err){
+    loading=false;warn="読み込めませんでした（電波を確認してください）"+(events.length?"。前回の内容を表示中":"");showStatus();
+  });
+}
+
+/* ---- 月の組み立て ---- */
+function buildMonth(keepFocus){
+  var first=new Date(state.y,state.m,1);
+  var start=addDays(first,-first.getDay());
+  var last=new Date(state.y,state.m+1,0);
+  state.weeks=[];
+  for(var d=start;d<=last;d=addDays(d,7))state.weeks.push(d);
+  $ttl.textContent=state.y+"年"+(state.m+1)+"月";
+  if(!keepFocus){
+    state.focus=0;
+    state.weeks.forEach(function(w,i){if(todayKey>=key(w)&&todayKey<=key(addDays(w,6)))state.focus=i});
+  }
+  $weeks.textContent="";
+  state.rows=state.weeks.map(function(w,i){
+    var row=el("div","wk");row.dataset.i=i;
+    var rail=el("button","rail",String(isoWeek(addDays(w,1))));
+    rail.type="button";rail.dataset.i=i;
+    rail.setAttribute("aria-label","第"+isoWeek(addDays(w,1))+"週を広げる。上下になぞると週を切り替え");
+    var days=el("div","days");
+    for(var k=0;k<7;k++){
+      var dt=addDays(w,k),kk=key(dt);
+      var day=el("div","day"+(k===0?" sun":k===6?" sat":"")+(holName(kk)?" hol":"")+(dt.getMonth()!==state.m?" out":"")+(kk===todayKey?" today":""));
+      day.dataset.k=kk;
+      var num=el("div","num");num.appendChild(el("span",null,String(dt.getDate())));
+      day.appendChild(num);day.appendChild(el("div","evs"));
+      days.appendChild(day);
+    }
+    row.appendChild(rail);row.appendChild(days);
+    $weeks.appendChild(row);
+    return row;
+  });
+  layout(true);showStatus();
+}
+
+function chip(e,tap){
+  var c=el(tap?"button":"div","chip"+(e.kind==="rem"?" rem":e.allDay?" all":"")+(e.done?" done":""));
+  if(tap){c.type="button";c._ev=e}
+  c.style.setProperty("--c",calOf(e.cal).color);
+  c.style.setProperty("--on",onColor(calOf(e.cal).color));
+  if(!e.allDay&&e.start)c.appendChild(el("span","tm",hm(e.start)));
+  c.appendChild(el("span","tt",e.title));
+  return c;
+}
+/* 広げた週の時間軸: 7日を同じ時間の物差しに並べ、時間が重なる予定はずらして重ねる */
+function fillGrid(row,map,room){
+  var days=row.querySelectorAll(".day"),per=[],maxTop=0,h0=9,h1=18,i;
+  for(i=0;i<days.length;i++){
+    var p=splitDay(map[days[i].dataset.k]||[],days[i].dataset.k);
+    if(p.timed.length){h0=Math.min(h0,p.lo);h1=Math.max(h1,p.hi)}
+    maxTop=Math.max(maxTop,p.top.length);per.push(p);
+  }
+  var hours=h1-h0,px=Math.max(14,Math.min(34,(room-HEAD-maxTop*18-12)/hours));
+  for(i=0;i<days.length;i++){
+    var day=days[i],box=day.querySelector(".evs"),q=per[i];
+    box.textContent="";
+    var tb=el("div","topbox");tb.style.height=maxTop*18+"px";
+    q.top.forEach(function(e){tb.appendChild(chip(e,true))});
+    var tg=el("div","tgrid");tg.style.height=hours*px+"px";tg.style.setProperty("--hh",px+"px");
+    q.timed.forEach(function(it){
+      var e=it.ev,b=el("button","wb"+(e.kind==="rem"?" rem":"")+(e.done?" done":""),(e.kind==="rem"?"○":"")+e.title);
+      b.type="button";b._ev=e;b.style.setProperty("--c",calOf(e.cal).color);
+      var left=it.col/it.n*100,width=it.n===1?100:Math.min(100-left,100/it.n*1.7);
+      b.style.top=((it.s-h0*60)/60*px+1)+"px";
+      b.style.height=Math.max((it.e-it.s)/60*px-1,11)+"px";
+      b.style.left=left+"%";b.style.width="calc("+width+"% - 1px)";
+      b.style.zIndex=String(1+it.col);
+      tg.appendChild(b);
+    });
+    box.appendChild(tb);box.appendChild(tg);
+  }
+  var rail=row.querySelector(".rail"),base=3+20+maxTop*18+3,step=px>=24?1:px>=17?2:3;
+  for(var h=h0;h<=h1;h+=step){
+    if(h===h0&&base<64)continue;
+    var s=el("span","hl",String(h));s.style.top=(base+(h-h0)*px)+"px";rail.appendChild(s);
+  }
+}
+function fillRow(row,mode,cap,map,room){
+  var old=row.querySelectorAll(".hl");
+  for(var j=0;j<old.length;j++)old[j].remove();
+  if(mode==="focus"&&state.grid){fillGrid(row,map,room);return}
+  var days=row.querySelectorAll(".day");
+  for(var i=0;i<days.length;i++){
+    var day=days[i],box=day.querySelector(".evs"),evs=map[day.dataset.k]||[];
+    box.textContent="";
+    if(mode==="compact"){
+      if(evs.length){
+        var dots=el("div","dots");
+        evs.slice(0,10).forEach(function(e){var o=el("span","dot"+(e.kind==="rem"?" rem":""));o.style.setProperty("--c",calOf(e.cal).color);dots.appendChild(o)});
+        box.appendChild(dots);
+      }
+    }else if(mode==="focus"){
+      evs.forEach(function(e){box.appendChild(chip(e,true))});
+    }else{
+      var show=evs.length>cap?Math.max(cap-1,0):evs.length;
+      evs.slice(0,show).forEach(function(e){box.appendChild(chip(e,false))});
+      if(evs.length>show)box.appendChild(el("div","more","+"+(evs.length-show)));
+    }
+  }
+}
+
+/* ---- 高さの配分: 選んだ週=中身ぶん、過ぎた週=点だけ、残りを先の週で分ける ---- */
+var COMPACT=44,MEDIUM_MIN=64,HEAD=26,LINE=18;
+function layout(instant){
+  var H=$weeks.clientHeight,n=state.rows.length,map=byDay();
+  if(!n||!H)return;
+  var f=state.rows[state.focus];
+  var modes=state.weeks.map(function(w,i){
+    if(i===state.focus)return "focus";
+    return key(addDays(w,6))<todayKey?"compact":"medium";
+  });
+  var c=modes.filter(function(m){return m==="compact"}).length;
+  var m=modes.filter(function(x){return x==="medium"}).length;
+  state.rows.forEach(function(r,i){r.classList.toggle("focus",i===state.focus);r.classList.toggle("past",modes[i]==="compact")});
+  var room=H-c*COMPACT-m*MEDIUM_MIN;
+  fillRow(f,"focus",0,map,room);
+  var prev=f.style.height;
+  f.style.transition="none";f.style.height="auto";
+  var need=f.offsetHeight+2;
+  f.style.height=prev;void f.offsetHeight;f.style.transition="";
+  var fH=Math.max(Math.min(need,room),Math.min(need,120));
+  var mH=m?Math.max((H-fH-c*COMPACT)/m,COMPACT):0;
+  if(!m)fH=Math.max(fH,H-c*COMPACT);
+  state.rows.forEach(function(r,i){
+    if(instant)r.style.transition="none";
+    if(modes[i]==="focus"){r.style.height=fH+"px"}
+    else if(modes[i]==="compact"){r.style.height=COMPACT+"px";fillRow(r,"compact",0,map)}
+    else{r.style.height=mH+"px";fillRow(r,"medium",Math.floor((mH-HEAD)/LINE),map)}
+    if(instant){void r.offsetHeight;r.style.transition=""}
+  });
+}
+function redraw(){layout(true);if(state.dayKey)renderDay()}
+function setFocus(i){
+  i=Math.max(0,Math.min(state.rows.length-1,i));
+  if(i===state.focus)return;
+  state.focus=i;closeSheet();layout(false);
+}
+
+/* ---- 表示するカレンダーの切り替え・色（この端末に保存） ---- */
+function savePrefs(){
+  set("wfc-hidden3",JSON.stringify(Object.keys(hidden)));
+  set("wfc-grid",state.grid?"1":"0");
+  set("wfc-colors3",JSON.stringify(Object.keys(userColors).map(function(id){return {id:id,c:userColors[id]}})));
+}
+function renderCals(){
+  $cals.textContent="";
+  var mb=el("button","cal mode",state.grid?"時間軸":"リスト");mb.type="button";
+  mb.setAttribute("aria-pressed",state.grid?"true":"false");
+  mb.setAttribute("aria-label","広げた週の表示を切り替え。今は"+(state.grid?"時間軸":"リスト"));
+  mb.addEventListener("click",function(){state.grid=!state.grid;savePrefs();renderCals();layout(true)});
+  $cals.appendChild(mb);
+  cals.forEach(function(c){
+    var b=el("button","cal"+(c.kind==="rem"?" rem":""));b.type="button";
+    b.style.setProperty("--c",c.color);
+    b.setAttribute("aria-pressed",hidden[c.id]?"false":"true");
+    b.appendChild(el("i"));b.appendChild(el("span",null,c.label));
+    b.addEventListener("click",function(){
+      if(hidden[c.id])delete hidden[c.id];else hidden[c.id]=1;
+      savePrefs();renderCals();redraw();
+    });
+    $cals.appendChild(b);
+  });
+  var cb=el("button","cal mode","設定");cb.type="button";cb.setAttribute("aria-pressed","false");
+  cb.addEventListener("click",openCfg);
+  $cals.appendChild(cb);
+}
+var SWATCH=[["#ff3b30","赤"],["#ff9500","オレンジ"],["#e0a800","黄"],["#34c759","緑"],["#32ade6","水色"],["#007aff","青"],["#af52de","紫"],["#a2845e","茶"]];
+function renderCfg(){
+  var box=$("cfl");box.textContent="";
+  if(!cals.length)box.appendChild(el("p","cfm","表示できるカレンダーがまだありません。"));
+  cals.forEach(function(c){
+    var row=el("div","cfr");
+    row.appendChild(el("span","cfn",c.label+(c.kind==="rem"?"（リマインダー）":"")));
+    var sw=el("div","cfs");
+    SWATCH.forEach(function(p){
+      var b=el("button","sw"+(c.color.toLowerCase()===p[0]?" on":""));b.type="button";
+      b.style.background=p[0];b.setAttribute("aria-label",c.label+"を"+p[1]+"にする");
+      b.addEventListener("click",function(){userColors[c.id]=p[0];recolor();savePrefs();renderCals();renderCfg();redraw()});
+      sw.appendChild(b);
+    });
+    row.appendChild(sw);box.appendChild(row);
+  });
+}
+/* 取り込むカレンダー（GAS の「予定設定」。自分の行だけ） */
+function cfMsg(t){$("cfmsg").textContent=t||""}
+function sendCfg(change){
+  cfMsg("保存中…");
+  api({api:"calConfigSet",changes:[change]}).then(function(res){
+    cfMsg(res&&res.ok?"保存しました。次の取り込みから反映します。":((res&&res.message)||"保存できませんでした"));
+    if(res&&res.ok&&res.list)drawImport(res.list);
+  }).catch(function(){cfMsg("保存できませんでした（電波を確認してください）")});
+}
+function drawImport(list){
+  var box=$("cfi");box.textContent="";
+  if(!list.length){box.appendChild(el("p","cfm","まだ何も届いていません。iPhone のショートカットを1回動かしてください。"));return}
+  list.forEach(function(c,i){
+    var row=el("div","cfr");
+    row.appendChild(el("span","cfn",c.name+"（"+c.kind+"・"+c.count+"件・"+String(c.last).slice(5)+"）"));
+    var line=el("div","cfs");
+    var lab=el("label"),cb=el("input");cb.type="checkbox";cb.id="imp-on-"+i;cb.checked=!!c.on;
+    lab.appendChild(cb);lab.appendChild(document.createTextNode("取り込む"));
+    cb.addEventListener("change",function(){sendCfg({kind:c.kind,name:c.name,on:cb.checked})});
+    var sel=el("select");sel.id="imp-share-"+i;sel.setAttribute("aria-label",c.name+"の扱い");
+    ["個人","共有"].forEach(function(v){var o=el("option",null,v);o.value=v;if(c.share===v)o.selected=true;sel.appendChild(o)});
+    sel.addEventListener("change",function(){sendCfg({kind:c.kind,name:c.name,share:sel.value})});
+    var inp=el("input");inp.type="text";inp.id="imp-label-"+i;inp.value=c.label||"";inp.placeholder="見せる名前";inp.maxLength=40;
+    inp.setAttribute("aria-label",c.name+"の見せる名前");
+    inp.addEventListener("change",function(){sendCfg({kind:c.kind,name:c.name,label:inp.value})});
+    line.appendChild(lab);line.appendChild(sel);line.appendChild(inp);
+    row.appendChild(line);box.appendChild(row);
+  });
+}
+function openCfg(){
+  closeSheet();renderCfg();cfMsg("");$("cfg").hidden=false;
+  var box=$("cfi");box.textContent="";
+  if(DEMO){drawImport([{kind:"予定",name:"家族",on:true,share:"共有",label:"",count:61,last:"2026-11-28 07:10"}]);return}
+  box.appendChild(el("p","cfm","読み込み中…"));
+  api({api:"calConfigGet"}).then(function(res){
+    if(res&&res.ok)drawImport(res.list||[]);else{box.textContent="";box.appendChild(el("p","cfm",(res&&res.message)||"読み込めませんでした"))}
+  }).catch(function(){box.textContent="";box.appendChild(el("p","cfm","読み込めませんでした（電波を確認してください）"))});
+}
+$("cfx").addEventListener("click",function(){$("cfg").hidden=true});
+$("tokreset").addEventListener("click",function(){$("cfg").hidden=true;$("tokin").value="";$("tokmsg").textContent="";$("tok").hidden=false});
+
+/* ---- 取り込み（↻）：ショートカットを呼ぶ。戻ってきたら自動で読み直す ---- */
+function openSync(){
+  $("cfg").hidden=true;
+  $("sht").textContent="予定の取り込み";
+  $("shw").textContent="iPhone のカレンダーとリマインダーは、ショートカット「"+SHORTCUT+"」が送ります。ふだんは決まった時刻に自動で送られます。";
+  $("shc").textContent=syncAt?"最後の取り込み: "+syncAt:"";
+  $("shl").textContent="「今すぐ取り込む」を押すとショートカットに切り替わります。終わったら左上の ◀ で戻ってください。戻ると自動で読み直します。";
+  $("shd").textContent="";
+  $("sha").hidden=false;$sheet.hidden=false;
+}
+$("runsc").href="shortcuts://run-shortcut?name="+encodeURIComponent(SHORTCUT);
+$("runsc").addEventListener("click",function(){loadedAt=0});
+$("refetch").addEventListener("click",function(){closeSheet();load()});
+document.addEventListener("visibilitychange",function(){
+  if(document.hidden)return;
+  var n=new Date();
+  if(key(n)!==todayKey){now=n;todayKey=key(n);buildMonth(true)}
+  if(Date.now()-loadedAt>60000){closeSheet();load()}
+});
+
+/* ---- 予定の詳細 ---- */
+function dayLabel(k){var d=ymd(k);return (d.getMonth()+1)+"月"+d.getDate()+"日（"+WDJ.charAt(d.getDay())+"）"}
+function openSheet(e){
+  var c=calOf(e.cal);
+  $("sha").hidden=true;
+  $("sht").textContent=e.title;
+  var w=dayLabel(e.day),t;
+  if(e.kind==="rem")t=w+(e.start?" "+hm(e.start):"")+" 期限"+(e.done?"・完了":"");
+  else t=e.allDay?w+" 終日":w+" "+hm(e.start)+(e.end?"〜"+hm(e.end):"");
+  $("shw").textContent=t;
+  var sc=$("shc");sc.textContent="";sc.style.setProperty("--c",c.color);
+  sc.appendChild(el("i"));sc.appendChild(el("span",null,c.label+(c.kind==="rem"?"（リマインダー）":"")+(c.share==="共有"?"・共有":"")));
+  $("shl").textContent=e.loc||"";
+  var desc=(e.desc||"").trim();
+  $("shd").textContent=desc.length>320?desc.slice(0,320)+"…":desc;
+  $sheet.hidden=false;
+}
+function closeSheet(){$sheet.hidden=true}
+$("shx").addEventListener("click",closeSheet);
+
+/* ---- 1日の時間軸: 時間が重なる予定は少しずらして重ねる ---- */
+var HH=46;
+function packDay(items){
+  items.sort(function(a,b){return a.s-b.s||b.e-a.e});
+  var clusters=[],cur=null,curEnd=-1;
+  items.forEach(function(it){
+    if(!cur||it.s>=curEnd){cur={items:[],cols:[]};clusters.push(cur);curEnd=it.e}
+    else curEnd=Math.max(curEnd,it.e);
+    var c=0;while(c<cur.cols.length&&cur.cols[c]>it.s)c++;
+    cur.cols[c]=it.e;it.col=c;cur.items.push(it);
+  });
+  clusters.forEach(function(cl){cl.items.forEach(function(it){it.n=cl.cols.length})});
+  return items;
+}
+function splitDay(evs,k){
+  var top=[],timed=[],lo=24,hi=0;
+  evs.forEach(function(e){
+    if(e.allDay||!e.start){top.push(e);return}
+    var s=e.start.getHours()*60+e.start.getMinutes();
+    var en=e.end?(key(e.end)!==k?1440:e.end.getHours()*60+e.end.getMinutes()):s+30;
+    if(en-s<25)en=s+25;
+    lo=Math.min(lo,Math.floor(s/60));hi=Math.max(hi,Math.min(24,Math.ceil(en/60)));
+    timed.push({ev:e,s:s,e:en});
+  });
+  return {top:top,timed:packDay(timed),lo:lo,hi:hi};
+}
+function renderDay(){
+  var map=byDay(),k=state.dayKey;
+  var p=splitDay(map[k]||[],k),first=p.lo;
+  var h0=Math.max(0,Math.min(first,7)),h1=24,total=(h1-h0)*HH;
+  var hrs=$("dvhrs");hrs.textContent="";hrs.style.height=total+"px";
+  for(var h=h0+1;h<h1;h++){var sp=el("span",null,h+"時");sp.style.top=(h-h0)*HH+"px";hrs.appendChild(sp)}
+  var d=ymd(k),t=$("dvt0"),col=$("dvc0");
+  t.textContent="";
+  var wk=$("dvweek"),sun=addDays(d,-d.getDay());wk.textContent="";
+  for(var w=0;w<7;w++){(function(dt,w){
+    var kk=key(dt),b=el("button",(kk===k?"sel ":"")+(kk===todayKey?"tdy ":"")+(holName(kk)?"hol ":"")+(w===0?"sun":w===6?"sat":""));
+    b.type="button";b.setAttribute("aria-label",dayLabel(kk));
+    b.appendChild(el("span",null,WDJ.charAt(w)));b.appendChild(el("b",null,String(dt.getDate())));
+    b.addEventListener("click",function(){goDay(kk,0)});
+    wk.appendChild(b);
+  })(addDays(sun,w),w)}
+  $("dvwk").textContent="第"+isoWeek(addDays(sun,1))+"週";
+  $("dvdate").textContent=d.getFullYear()+"年"+(d.getMonth()+1)+"月"+d.getDate()+"日・"+WDJ.charAt(d.getDay())+"曜日";
+  $("dvhol").textContent=holName(k);
+  p.top.forEach(function(e){t.appendChild(chip(e,true))});
+  col.textContent="";col.style.height=total+"px";col.style.setProperty("--hh",HH+"px");
+  p.timed.forEach(function(it){
+    var e=it.ev;
+    var b=el("button","blk"+(e.kind==="rem"?" rem":"")+(e.done?" done":""));
+    b.type="button";b._ev=e;
+    b.style.setProperty("--c",calOf(e.cal).color);
+    var left=it.col/it.n*100,width=it.n===1?100:Math.min(100-left,100/it.n*1.7);
+    b.style.top=((it.s-h0*60)/60*HH+1)+"px";
+    b.style.height=Math.max((it.e-it.s)/60*HH-2,16)+"px";
+    b.style.left="calc("+left+"% + 2px)";b.style.width="calc("+width+"% - 4px)";
+    b.style.zIndex=String(1+it.col);
+    b.appendChild(el("b",null,e.title));
+    b.appendChild(el("small",null,hm(e.start)+(e.end&&e.kind!=="rem"?"〜"+hm(e.end):"")));
+    col.appendChild(b);
+  });
+  if(k===todayKey){
+    var n=new Date(),nl=el("div","nowline");
+    nl.style.top=((n.getHours()*60+n.getMinutes()-h0*60)/60*HH)+"px";col.appendChild(nl);
+  }
+  return {h0:h0,first:first};
+}
+function openDay(k){
+  state.dayKey=k;closeSheet();$dayv.hidden=false;
+  var r=renderDay(),n=new Date();
+  var target=(k===todayKey?n.getHours()-1:(r.first<24?r.first:8))-r.h0;
+  $("dvscroll").scrollTop=Math.max(0,target*HH-8);
+}
+function closeDay(){state.dayKey=null;$dayv.hidden=true;closeSheet()}
+function goDay(k,dir){
+  var top=$("dvscroll").scrollTop,d=ymd(k);
+  state.dayKey=k;closeSheet();
+  if(k<key(state.weeks[0])||k>key(addDays(state.weeks[state.weeks.length-1],6))){
+    state.y=d.getFullYear();state.m=d.getMonth();buildMonth(false);
+  }
+  state.weeks.forEach(function(w,i){if(k>=key(w)&&k<=key(addDays(w,6))&&i!==state.focus){state.focus=i;layout(true)}});
+  renderDay();
+  $("dvscroll").scrollTop=top;
+  if(dir){var g=$("dvgrid");g.classList.remove("inL","inR");void g.offsetWidth;g.classList.add(dir>0?"inL":"inR")}
+}
+function shiftDay(n){goDay(key(addDays(ymd(state.dayKey),n)),n)}
+$("dvback").addEventListener("click",closeDay);
+$("dvprev").addEventListener("click",function(){shiftDay(-1)});
+$("dvnext").addEventListener("click",function(){shiftDay(1)});
+var sw=null;
+$dayv.addEventListener("touchstart",function(ev){var t=ev.touches[0];sw=ev.touches.length===1?{x:t.clientX,y:t.clientY}:null},{passive:true});
+$dayv.addEventListener("touchend",function(ev){
+  if(!sw)return;
+  var t=ev.changedTouches[0],dx=t.clientX-sw.x,dy=t.clientY-sw.y;sw=null;
+  if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5)shiftDay(dx<0?1:-1);
+},{passive:true});
+$dayv.addEventListener("click",function(ev){
+  var c=ev.target.closest(".blk,.chip");
+  if(c&&c._ev)openSheet(c._ev);
+});
+
+/* ---- 操作: レールをなぞる／週をタップ／日付・予定をタップ ---- */
+var drag=null,STEP=34;
+$weeks.addEventListener("pointerdown",function(ev){
+  var rail=ev.target.closest(".rail");
+  if(!rail)return;
+  drag={y:ev.clientY,i:+rail.dataset.i,id:ev.pointerId};
+  try{rail.setPointerCapture(ev.pointerId)}catch(e){}
+  setFocus(drag.i);ev.preventDefault();
+});
+$weeks.addEventListener("pointermove",function(ev){
+  if(!drag||ev.pointerId!==drag.id)return;
+  setFocus(drag.i+Math.round((ev.clientY-drag.y)/STEP));
+});
+function endDrag(ev){if(drag&&ev.pointerId===drag.id)drag=null}
+$weeks.addEventListener("pointerup",endDrag);
+$weeks.addEventListener("pointercancel",endDrag);
+$weeks.addEventListener("click",function(ev){
+  var row=ev.target.closest(".wk");
+  if(!row||ev.target.closest(".rail"))return;
+  var i=+row.dataset.i;
+  if(i!==state.focus){setFocus(i);return}
+  var c=ev.target.closest(".chip,.wb");
+  if(c&&c._ev){openSheet(c._ev);return}
+  var num=ev.target.closest(".num");
+  if(num){openDay(num.parentNode.dataset.k);return}
+  closeSheet();
+});
+$weeks.addEventListener("keydown",function(ev){
+  if(!ev.target.closest(".rail"))return;
+  var d=ev.key==="ArrowDown"?1:ev.key==="ArrowUp"?-1:0;
+  if(!d)return;
+  ev.preventDefault();setFocus(state.focus+d);
+  state.rows[state.focus].querySelector(".rail").focus();
+});
+function shiftMonth(n){var d=new Date(state.y,state.m+n,1);state.y=d.getFullYear();state.m=d.getMonth();closeSheet();buildMonth(false)}
+$("prev").addEventListener("click",function(){shiftMonth(-1)});
+$("next").addEventListener("click",function(){shiftMonth(1)});
+$("today").addEventListener("click",function(){state.y=now.getFullYear();state.m=now.getMonth();closeSheet();buildMonth(false)});
+$("reload").addEventListener("click",openSync);
+var rz;window.addEventListener("resize",function(){clearTimeout(rz);rz=setTimeout(function(){layout(true)},120)});
+
+/* ---- 合言葉 ---- */
+$("tokgo").addEventListener("click",function(){
+  var v=$("tokin").value.trim();
+  if(v.length<16){$("tokmsg").textContent="合言葉が短すぎます。もう一度貼り付けてください。";return}
+  token=v;set("cal_token",v);$("tokin").value="";$("tokmsg").textContent="";$("tok").hidden=true;warn="";load();
+});
+
+/* ---- 起動：前に読んだ分をすぐ出してから、裏で読み直す ---- */
+renderCals();
+buildMonth(false);
+if(!DEMO){
+  try{var c0=JSON.parse(get("cal_cache")||"null");if(c0&&c0.ok&&token){applyData(c0);renderCals();redraw()}}catch(e){}
+}
+load();
+})();
+</script>
+</body>
+</html>
