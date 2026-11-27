@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SCテスト">
+<title>ショートカット呼び出しテスト</title>
+<style>
+body{margin:0;padding:20px 16px 40px;font-family:-apple-system,"Hiragino Sans",sans-serif;font-size:16px;line-height:1.7;background:#f3f5f6;color:#1b2428}
+h1{font-size:19px;margin:0 0 8px}
+.box{background:#fff;border:1px solid #d5dde0;border-radius:10px;padding:12px 14px;margin:12px 0}
+.big{font-size:22px;font-weight:700}
+a.btn,button{display:block;width:100%;box-sizing:border-box;margin:10px 0;padding:14px;border:0;border-radius:10px;background:#0f6e6a;color:#fff;font:inherit;font-weight:700;text-align:center;text-decoration:none}
+button.sub{background:#fff;color:#0f6e6a;border:1px solid #0f6e6a}
+pre{white-space:pre-wrap;word-break:break-all;font-size:13px;line-height:1.5;margin:0}
+small{color:#5f6d73}
+</style>
+</head>
+<body>
+<h1>ショートカット呼び出しテスト</h1>
+<div class="box">
+  <div>開き方：<span class="big" id="mode"></span></div>
+  <div>この画面の番号：<span class="big" id="mark"></span></div>
+  <small>戻ってきたときに、開き方と番号が同じなら「同じアプリに戻れた」です。</small>
+</div>
+<a class="btn" id="a1">① ショートカットを呼ぶ（戻りは手で）</a>
+<a class="btn" id="a2">② ショートカットを呼ぶ（終わったら自動で戻る）</a>
+<div class="box"><b>きろく</b><pre id="log"></pre></div>
+<button class="sub" id="copy">きろくをコピー</button>
+<button class="sub" id="clear">きろくを消す</button>
+<script>
+(function(){
+  var NAME="yotei-test";
+  var $=function(id){return document.getElementById(id)};
+  function get(k){try{return localStorage.getItem(k)}catch(e){return null}}
+  function set(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+  var standalone=(window.navigator.standalone===true)||(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches);
+  var modeText=standalone?"ホーム画面アプリ":"Safari（ブラウザ）";
+  $("mode").textContent=modeText;
+  var mark=get("sc_mark");
+  var fresh=!mark;
+  if(!mark){mark=String(Math.floor(1000+Math.random()*9000));set("sc_mark",mark)}
+  $("mark").textContent=mark+(fresh?"（新しく作った）":"");
+  function now(){var d=new Date(),p=function(n){return String(n).padStart(2,"0")};return p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds())}
+  function log(t){var s=(get("sc_log")||"")+now()+" ["+(standalone?"アプリ":"Safari")+" "+mark+"] "+t+"\n";set("sc_log",s);$("log").textContent=s}
+  var here=location.origin+location.pathname;
+  $("a1").href="shortcuts://run-shortcut?name="+encodeURIComponent(NAME);
+  $("a2").href="shortcuts://x-callback-url/run-shortcut?name="+encodeURIComponent(NAME)
+    +"&x-success="+encodeURIComponent(here+"?back=ok")
+    +"&x-cancel="+encodeURIComponent(here+"?back=cancel")
+    +"&x-error="+encodeURIComponent(here+"?back=error");
+  $("a1").addEventListener("click",function(){log("①を押した")});
+  $("a2").addEventListener("click",function(){log("②を押した")});
+  var q=new URLSearchParams(location.search).get("back");
+  log("画面を開いた"+(q?"（自動で戻ってきた："+q+"）":""));
+  document.addEventListener("visibilitychange",function(){log(document.hidden?"画面がかくれた":"画面にもどった")});
+  window.addEventListener("pageshow",function(e){if(e.persisted)log("前の画面がそのまま出た")});
+  $("copy").addEventListener("click",function(){
+    var t=$("log").textContent;
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){$("copy").textContent="コピーしました"},function(){$("copy").textContent="コピーできません。長押しで選んでください"})}
+    else{$("copy").textContent="コピーできません。長押しで選んでください"}
+  });
+  $("clear").addEventListener("click",function(){set("sc_log","");$("log").textContent="";log("きろくを消した")});
+})();
+</script>
+</body>
+</html>
