@@ -174,7 +174,10 @@ footer span:last-child{text-align:right;flex:none}
 #cfg h3{font-size:13px;margin:16px 0 4px;color:var(--muted);font-weight:600}
 .xbtn{position:absolute;top:8px;right:10px;width:34px;height:34px;border:0;background:transparent;font-size:20px;color:var(--muted)}
 .cfr{display:flex;flex-direction:column;gap:6px;padding:8px 0;border-top:1px solid var(--line)}
-.cfn{font-size:13px}
+.cfn{font-size:13px;flex:1;min-width:0}
+.cfh{display:flex;align-items:center;gap:6px}
+.mv{width:40px;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:12px;flex:none}
+.mv:disabled{opacity:.3}
 .cfs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .sw{width:30px;height:30px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line)}
 .sw.on{box-shadow:0 0 0 2.5px var(--ink)}
@@ -236,7 +239,7 @@ footer span:last-child{text-align:right;flex:none}
   <div id="cfg" hidden>
     <button class="xbtn" id="cfx" aria-label="閉じる">×</button>
     <h2>カレンダーの設定</h2>
-    <h3>色（この端末だけ）</h3>
+    <h3>色とならび（この端末だけ）</h3>
     <div id="cfl"></div>
     <h3>取り込むカレンダー（iPhone から届いたもの）</h3>
     <p class="cfm">変えたあと、次の取り込みから反映します。「共有」にすると相手の画面にも出ます。</p>
@@ -267,7 +270,7 @@ footer span:last-child{text-align:right;flex:none}
 <script>
 (function(){
 "use strict";
-var VERSION="2026-11-28d";
+var VERSION="2026-11-28e";
 var API_URL="https://script.google.com/macros/s/AKfycbyIkc-zEL9Xcv5Z_IDJuieHNbNKwHTJIwPbTPFdmLSgCeKHN5YC7-yCZxR6Rf_gvCRe1g/exec";
 var SHORTCUT="予定を送る";
 var PALETTE=["#0f766e","#b45309","#7c3aed","#2563eb","#be185d","#4d7c0f","#0e7490","#9a3412"];
@@ -333,6 +336,24 @@ function recolor(){
   var ci=0;
   cals.forEach(function(c){c.color=userColors[c.id]||DEFCOL[c.label]||DEFCOL[c.name]||PALETTE[(ci++)%PALETTE.length]});
 }
+/* 上のボタンの並び（この端末に保存）。並びにない新しいカレンダーは、うしろに付く */
+function calOrder(){try{return (JSON.parse(get("wfc-order")||"[]")||[]).filter(function(x){return typeof x==="string"})}catch(e){return []}}
+function sortCals(){
+  var ord=calOrder(),pos={};
+  ord.forEach(function(id,i){pos[id]=i});
+  cals.forEach(function(c,i){c._i=i});
+  cals.sort(function(a,b){
+    var pa=pos[a.id]===undefined?1e6+a._i:pos[a.id],pb=pos[b.id]===undefined?1e6+b._i:pos[b.id];
+    return pa-pb;
+  });
+}
+function moveCal(i,d){
+  var j=i+d;
+  if(j<0||j>=cals.length)return;
+  var t=cals[i];cals[i]=cals[j];cals[j]=t;
+  set("wfc-order",JSON.stringify(cals.map(function(c){return c.id})));
+  renderCals();renderCfg();
+}
 function onColor(hex){
   var m=/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex||"");
   if(!m)return "#fff";
@@ -379,7 +400,7 @@ function applyData(res){
     var rem=c.kind==="rem";
     return {id:(rem?"rem:":"cal:")+c.name,name:c.name,label:c.label||c.name,kind:rem?"rem":"cal",share:c.share||""};
   });
-  recolor();
+  recolor();sortCals();
   var out=[];raws=[];
   (res.items||[]).forEach(function(x){
     var cid=(x.kind==="rem"?"rem:":"cal:")+x.cal;
@@ -607,9 +628,17 @@ var SWATCH=[["#ff3b30","赤"],["#ff9500","オレンジ"],["#e0a800","黄"],["#34
 function renderCfg(){
   var box=$("cfl");box.textContent="";
   if(!cals.length)box.appendChild(el("p","cfm","表示できるカレンダーがまだありません。"));
-  cals.forEach(function(c){
+  cals.forEach(function(c,i){
     var row=el("div","cfr");
-    row.appendChild(el("span","cfn",c.label+(c.kind==="rem"?"（リマインダー）":"")));
+    var head=el("div","cfh");
+    head.appendChild(el("span","cfn",c.label+(c.kind==="rem"?"（リマインダー）":"")));
+    [[-1,"▲","上へ"],[1,"▼","下へ"]].forEach(function(a){
+      var mb=el("button","mv",a[1]);mb.type="button";mb.setAttribute("aria-label",c.label+"を"+a[2]+"動かす");
+      mb.disabled=i+a[0]<0||i+a[0]>=cals.length;
+      mb.addEventListener("click",function(){moveCal(i,a[0])});
+      head.appendChild(mb);
+    });
+    row.appendChild(head);
     var sw=el("div","cfs");
     SWATCH.forEach(function(p){
       var b=el("button","sw"+(c.color.toLowerCase()===p[0]?" on":""));b.type="button";
