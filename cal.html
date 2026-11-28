@@ -6,7 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#f3f5f6">
 <title>週フォーカスカレンダー</title>
-<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-title" content="カレンダー">
+<link rel="apple-touch-icon" href="cal-icon-180.png">
+<link rel="icon" href="cal-icon-180.png">
 <style>
 /* cal.html … 週フォーカスカレンダー（2026-11-28）。試作（Claude のアーティファクト 11/26 版）の画面と操作をそのまま移し、
    予定の読み込みだけを Apps Script「予定（週フォーカスカレンダー）」の calGet に差し替えた。合言葉は端末に保存（cal_token）。
@@ -169,9 +171,7 @@ footer span:last-child{text-align:right;flex:none}
       <h1 id="ttl"></h1>
       <div class="nav">
         <a id="home" href="./index.html" aria-label="育児記録にもどる">育児</a>
-        <button id="prev" aria-label="前の月">‹</button>
         <button id="today">今日</button>
-        <button id="next" aria-label="次の月">›</button>
         <button id="reload" aria-label="予定を読み直す">↻</button>
       </div>
     </div>
@@ -179,7 +179,7 @@ footer span:last-child{text-align:right;flex:none}
   </header>
   <div class="wdrow"><span class="railhd">週</span><div class="wds"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div></div>
   <main id="weeks"></main>
-  <footer><span id="status"></span><span>週番号をなぞる＝拡大<br>日付をタップ＝時間表示</span></footer>
+  <footer><span id="status"></span><span>週番号をなぞる＝拡大／日付をタップ＝時間表示<br>上下にスワイプ＝前後の月</span></footer>
 
   <section id="dayv" hidden aria-label="1日の時間表示">
     <div class="dvh">
@@ -226,7 +226,7 @@ footer span:last-child{text-align:right;flex:none}
 <script>
 (function(){
 "use strict";
-var VERSION="2026-11-28a";
+var VERSION="2026-11-28b";
 var API_URL="https://script.google.com/macros/s/AKfycbyIkc-zEL9Xcv5Z_IDJuieHNbNKwHTJIwPbTPFdmLSgCeKHN5YC7-yCZxR6Rf_gvCRe1g/exec";
 var SHORTCUT="予定を送る";
 var PALETTE=["#0f766e","#b45309","#7c3aed","#2563eb","#be185d","#4d7c0f","#0e7490","#9a3412"];
@@ -770,7 +770,11 @@ $weeks.addEventListener("pointerdown",function(ev){
 });
 $weeks.addEventListener("pointermove",function(ev){
   if(!drag||ev.pointerId!==drag.id)return;
-  setFocus(drag.i+Math.round((ev.clientY-drag.y)/STEP));
+  /* 最後（最初）の週をこえて、さらになぞったら次（前）の月へ。月が変わったら、なぞりはいったん終わり */
+  var pos=drag.i+(ev.clientY-drag.y)/STEP;
+  if(pos>state.rows.length-1+1.5){drag=null;shiftMonth(1,"first");return}
+  if(pos<-1.5){drag=null;shiftMonth(-1,"last");return}
+  setFocus(Math.round(pos));
 });
 function endDrag(ev){if(drag&&ev.pointerId===drag.id)drag=null}
 $weeks.addEventListener("pointerup",endDrag);
@@ -793,9 +797,24 @@ $weeks.addEventListener("keydown",function(ev){
   ev.preventDefault();setFocus(state.focus+d);
   state.rows[state.focus].querySelector(".rail").focus();
 });
-function shiftMonth(n){var d=new Date(state.y,state.m+n,1);state.y=d.getFullYear();state.m=d.getMonth();closeSheet();buildMonth(false)}
-$("prev").addEventListener("click",function(){shiftMonth(-1)});
-$("next").addEventListener("click",function(){shiftMonth(1)});
+function shiftMonth(n,edge){
+  var d=new Date(state.y,state.m+n,1);state.y=d.getFullYear();state.m=d.getMonth();closeSheet();buildMonth(false);
+  if(edge){state.focus=edge==="first"?0:state.rows.length-1;layout(true)}
+}
+/* 上下にスワイプ＝前後の月（上へ＝次の月）。広げた週の中がスクロールできるときは、端まで行ってからのスワイプだけ */
+var vs=null;
+$weeks.addEventListener("touchstart",function(ev){
+  if(ev.touches.length!==1||ev.target.closest(".rail")){vs=null;return}
+  var t=ev.touches[0],sc=ev.target.closest(".wk.focus .days");
+  vs={x:t.clientX,y:t.clientY,top:!sc||sc.scrollTop<=0,bottom:!sc||sc.scrollTop+sc.clientHeight>=sc.scrollHeight-1};
+},{passive:true});
+$weeks.addEventListener("touchend",function(ev){
+  if(!vs)return;
+  var t=ev.changedTouches[0],dx=t.clientX-vs.x,dy=t.clientY-vs.y,s0=vs;vs=null;
+  if(Math.abs(dy)<60||Math.abs(dy)<Math.abs(dx)*1.5)return;
+  if(dy<0&&s0.bottom)shiftMonth(1);else if(dy>0&&s0.top)shiftMonth(-1);
+},{passive:true});
+$weeks.addEventListener("touchcancel",function(){vs=null},{passive:true});
 $("today").addEventListener("click",function(){state.y=now.getFullYear();state.m=now.getMonth();closeSheet();buildMonth(false)});
 $("reload").addEventListener("click",openSync);
 var rz;window.addEventListener("resize",function(){clearTimeout(rz);rz=setTimeout(function(){layout(true)},120)});
