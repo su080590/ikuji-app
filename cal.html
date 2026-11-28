@@ -214,7 +214,7 @@ footer span:last-child{text-align:right;flex:none}
   </header>
   <div class="wdrow"><span class="railhd">週</span><div class="wds"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div></div>
   <main id="weeks"></main>
-  <footer><span id="status"></span><span>週番号をなぞる＝拡大／日付をタップ＝時間表示<br>上下にスワイプ＝前後の月</span></footer>
+  <footer><span id="status"></span><span>上下にスワイプ＝前後の週／左右＝前後の月<br>日付をタップ＝時間表示</span></footer>
 
   <section id="dayv" hidden aria-label="1日の時間表示">
     <div class="dvh">
@@ -270,7 +270,7 @@ footer span:last-child{text-align:right;flex:none}
 <script>
 (function(){
 "use strict";
-var VERSION="2026-11-28e";
+var VERSION="2026-11-28f";
 var API_URL="https://script.google.com/macros/s/AKfycbyIkc-zEL9Xcv5Z_IDJuieHNbNKwHTJIwPbTPFdmLSgCeKHN5YC7-yCZxR6Rf_gvCRe1g/exec";
 var SHORTCUT="予定を送る";
 var PALETTE=["#0f766e","#b45309","#7c3aed","#2563eb","#be185d","#4d7c0f","#0e7490","#9a3412"];
@@ -844,8 +844,8 @@ $weeks.addEventListener("pointermove",function(ev){
   if(!drag||ev.pointerId!==drag.id)return;
   /* 最後（最初）の週をこえて、さらになぞったら次（前）の月へ。月が変わったら、なぞりはいったん終わり */
   var pos=drag.i+(ev.clientY-drag.y)/STEP;
-  if(pos>state.rows.length-1+1.5){drag=null;shiftMonth(1,"first");return}
-  if(pos<-1.5){drag=null;shiftMonth(-1,"last");return}
+  if(pos>state.rows.length-1+1.5){drag=null;state.focus=state.rows.length-1;stepWeek(1);return}
+  if(pos<-1.5){drag=null;state.focus=0;stepWeek(-1);return}
   setFocus(Math.round(pos));
 });
 function endDrag(ev){if(drag&&ev.pointerId===drag.id)drag=null}
@@ -869,11 +869,21 @@ $weeks.addEventListener("keydown",function(ev){
   ev.preventDefault();setFocus(state.focus+d);
   state.rows[state.focus].querySelector(".rail").focus();
 });
-function shiftMonth(n,edge){
+function shiftMonth(n){
   var d=new Date(state.y,state.m+n,1);state.y=d.getFullYear();state.m=d.getMonth();closeSheet();buildMonth(false);
-  if(edge){state.focus=edge==="first"?0:state.rows.length-1;layout(true)}
 }
-/* 上下にスワイプ＝前後の月（上へ＝次の月）。広げた週の中がスクロールできるときは、端まで行ってからのスワイプだけ */
+/* 週を1つ動かす。月の端をこえたら、となりの週に続く（月の画面は切り替わるが、見ている週は1つ動くだけ） */
+function stepWeek(d){
+  var t=state.focus+d;
+  if(t>=0&&t<state.rows.length){setFocus(t);return}
+  var s0=addDays(state.weeks[state.focus],7*d),ref=d>0?s0:addDays(s0,6),k=key(s0);
+  state.y=ref.getFullYear();state.m=ref.getMonth();closeSheet();buildMonth(true);
+  state.focus=d>0?0:state.rows.length-1;
+  state.weeks.forEach(function(w,i){if(key(w)===k)state.focus=i});
+  layout(true);
+}
+/* 上下にスワイプ＝前後の週（上へ＝次の週）。左右にスワイプ＝前後の月（左へ＝次の月）。
+   広げた週の中がスクロールできるときは、端まで行ってからの上下スワイプだけが週を動かす。1回のスワイプで動くのは1つ */
 var vs=null;
 $weeks.addEventListener("touchstart",function(ev){
   if(ev.touches.length!==1||ev.target.closest(".rail")){vs=null;return}
@@ -890,8 +900,11 @@ $weeks.addEventListener("touchmove",function(ev){
 $weeks.addEventListener("touchend",function(ev){
   if(!vs)return;
   var t=ev.changedTouches[0],dx=t.clientX-vs.x,dy=t.clientY-vs.y,s0=vs;vs=null;
-  if(Math.abs(dy)<60||Math.abs(dy)<Math.abs(dx)*1.5)return;
-  if(dy<0&&s0.bottom)shiftMonth(1);else if(dy>0&&s0.top)shiftMonth(-1);
+  if(Math.abs(dy)>=40&&Math.abs(dy)>=Math.abs(dx)*1.5){
+    if(dy<0&&s0.bottom)stepWeek(1);else if(dy>0&&s0.top)stepWeek(-1);
+  }else if(Math.abs(dx)>=60&&Math.abs(dx)>=Math.abs(dy)*1.5){
+    shiftMonth(dx<0?1:-1);
+  }
 },{passive:true});
 $weeks.addEventListener("touchcancel",function(){vs=null},{passive:true});
 $("today").addEventListener("click",function(){state.y=now.getFullYear();state.m=now.getMonth();closeSheet();buildMonth(false)});
